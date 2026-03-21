@@ -2295,56 +2295,147 @@
   body.compact .instructions-toggle-btn { display: none; }
 
   /* =========================================
-     ALT1 TOOLKIT — Panel optimizations
-     When running inside Alt1, the body gets
-     class "alt1" for targeted CSS.
+     ALT1 TOOLKIT — Panel-optimized layout
+     Keeps ALL sections visible but condenses
+     spacing, fonts, and padding for ~390px
+     side-panel use. body gets class "alt1".
      ========================================= */
+
+  /* --- Base & Background --- */
   body.alt1 {
     background: var(--bg-deep);
     overflow-x: hidden;
+    font-size: 14px;
+    line-height: 1.45;
   }
+  body.alt1::before,
+  body.alt1::after { display: none; }  /* GPU-heavy decorative layers */
+
   body.alt1 .app {
     max-width: 100%;
-    padding: 12px 10px 50px;
+    padding: 8px 10px 52px;
   }
-  body.alt1 .header {
-    padding: 12px 0 10px;
-    margin-bottom: 12px;
-  }
-  body.alt1 .header h1 {
-    font-size: 16px;
-    letter-spacing: 2px;
-  }
-  body.alt1 .header .subtitle {
-    font-size: 10px;
-  }
-  body.alt1 .header::after { display: none; }
 
-  /* Tighter stats in Alt1 panel */
-  body.alt1 .stats-row {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+  /* --- Header --- */
+  body.alt1 .header {
+    padding: 10px 0 8px;
     margin-bottom: 10px;
   }
-  body.alt1 .stat-card { padding: 8px 8px; }
-  body.alt1 .stat-card .stat-label { font-size: 8px; }
-  body.alt1 .stat-card .stat-value { font-size: 14px; }
+  body.alt1 .header h1 { font-size: 16px; letter-spacing: 2px; }
+  body.alt1 .header .subtitle { font-size: 10px; }
+  body.alt1 .header::after { display: none; }
 
-  /* Hide decorative backgrounds that waste GPU in overlay */
-  body.alt1::before,
-  body.alt1::after { display: none; }
-
-  /* Compact regrow banner */
-  body.alt1 .regrow-banner { padding: 10px 12px; margin-bottom: 10px; }
-  body.alt1 .regrow-time { font-size: 20px; }
+  /* --- Regrow Banner --- */
+  body.alt1 .regrow-banner { padding: 8px 10px; margin-bottom: 8px; }
+  body.alt1 .regrow-time { font-size: 18px; }
   body.alt1 .regrow-label { font-size: 9px; }
+  body.alt1 .regrow-controls { gap: 6px; }
 
-  /* Smaller patch cards */
-  body.alt1 .patch-card { margin-bottom: 4px; }
-  body.alt1 .patch-main { padding: 8px 10px; }
-  body.alt1 .patch-name { font-size: 13px; }
+  /* --- Stats Row --- */
+  body.alt1 .stats-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  body.alt1 .stat-card { padding: 6px 6px; }
+  body.alt1 .stat-card .stat-label { font-size: 7px; letter-spacing: 0.8px; }
+  body.alt1 .stat-card .stat-value { font-size: 13px; }
 
-  /* Move toggle buttons into a single row at bottom */
+  /* --- Progress Bar --- */
+  body.alt1 .progress-bar-wrap { margin-bottom: 8px; }
+
+  /* --- Controls (dropdowns) --- */
+  body.alt1 .controls { gap: 6px; margin-bottom: 14px; }
+  body.alt1 .control-group { min-width: 0; padding: 8px 10px; }
+  body.alt1 .control-group label { font-size: 9px; margin-bottom: 4px; letter-spacing: 1px; }
+  body.alt1 .control-group select { font-size: 13px; padding: 5px 8px; }
+
+  /* --- Section Headers --- */
+  body.alt1 .section-header {
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    margin: 16px 0 8px;
+    padding-bottom: 4px;
+    gap: 6px;
+  }
+  body.alt1 .section-header .section-icon,
+  body.alt1 .section-header .section-icon svg { width: 14px; height: 14px; }
+
+  /* --- Settings / Teleport Panels --- */
+  body.alt1 .settings-panel { margin-bottom: 8px; }
+  body.alt1 .settings-header { padding: 8px 10px; font-size: 12px; }
+  body.alt1 .settings-body { padding: 8px 10px; }
+  body.alt1 .teleport-toggle { padding: 6px 8px; }
+  body.alt1 .teleport-toggle-name { font-size: 12px; }
+  body.alt1 .teleport-toggle-detail { font-size: 9px; }
+  body.alt1 .teleport-toggle input[type="checkbox"] { width: 28px; height: 15px; }
+  body.alt1 .teleport-toggle input[type="checkbox"]::after { width: 10px; height: 10px; top: 1.5px; left: 1.5px; }
+  body.alt1 .teleport-toggle input[type="checkbox"]:checked::after { left: 14px; }
+
+  /* --- Farming Unlock Toggles --- */
+  body.alt1 .unlock-icon { width: 22px; height: 22px; }
+  body.alt1 .unlock-grid { gap: 5px; }
+  body.alt1 .unlock-select { font-size: 12px; padding: 3px 6px; }
+  body.alt1 .effective-yield-display { font-size: 12px; padding: 6px 8px; }
+  body.alt1 .effective-yield-display span { font-size: 16px; }
+
+  /* --- Patch Cards --- */
+  body.alt1 .patch-card { margin-bottom: 3px; border-radius: 5px; }
+  body.alt1 .patch-main { padding: 7px 8px; }
+  body.alt1 .patch-icon { width: 28px; height: 28px; }
+  body.alt1 .patch-name { font-size: 12px; }
+  body.alt1 .patch-step { font-size: 10px; }
+  body.alt1 .patch-time { font-size: 11px; }
+  body.alt1 .patch-details-inner { padding: 8px 10px; font-size: 13px; }
+  body.alt1 .drag-handle { width: 14px; font-size: 10px; }
+
+  /* --- Profit Table --- */
+  body.alt1 .profit-table { font-size: 12px; margin-top: 8px; }
+  body.alt1 .profit-table th { font-size: 9px; padding: 4px 6px; letter-spacing: 1px; }
+  body.alt1 .profit-table td { padding: 5px 6px; }
+  body.alt1 .profit-table .gp { font-size: 12px; }
+  body.alt1 .profit-table .total-row td { padding-top: 6px; }
+  body.alt1 .profit-table-wrap { margin-bottom: 8px; }
+
+  /* --- Note Box --- */
+  body.alt1 .note-box { padding: 8px 10px; font-size: 12px; margin-top: 8px; line-height: 1.5; }
+
+  /* --- GE Fetch Bar --- */
+  body.alt1 .ge-fetch-bar { padding: 8px 10px; margin-bottom: 8px; }
+  body.alt1 .ge-fetch-label { font-size: 10px; }
+  body.alt1 .ge-fetch-status { font-size: 11px; }
+  body.alt1 .ge-fetch-btn { font-size: 10px; padding: 4px 10px; }
+
+  /* --- Loadout Section --- */
+  body.alt1 .loadout-header { padding: 8px 10px; }
+  body.alt1 .loadout-title { font-size: 12px; letter-spacing: 1.5px; }
+  body.alt1 .loadout-progress { font-size: 11px; }
+  body.alt1 .loadout-grid { gap: 4px; padding: 8px; }
+  body.alt1 .loadout-item { padding: 6px 8px; }
+  body.alt1 .loadout-item-icon { width: 26px; height: 26px; }
+  body.alt1 .loadout-item-name { font-size: 12px; }
+  body.alt1 .loadout-item-qty { font-size: 10px; }
+  body.alt1 .loadout-note { padding: 6px 8px; font-size: 11px; }
+
+  /* --- History Section --- */
+  body.alt1 .history-section { margin-top: 16px; }
+  body.alt1 .history-header { padding-bottom: 4px; margin-bottom: 8px; }
+  body.alt1 .history-title { font-size: 12px; letter-spacing: 1.5px; }
+  body.alt1 .history-count { font-size: 10px; }
+  body.alt1 .history-summary { gap: 5px; margin-bottom: 8px; }
+  body.alt1 .history-stat { padding: 6px 8px; }
+  body.alt1 .history-stat .hs-label { font-size: 7px; }
+  body.alt1 .history-stat .hs-value { font-size: 13px; }
+  body.alt1 .history-table { font-size: 11px; }
+  body.alt1 .history-table th { font-size: 9px; padding: 4px 6px; }
+  body.alt1 .history-table td { padding: 4px 6px; }
+  body.alt1 .history-clear-btn { font-size: 10px; padding: 4px 12px; }
+
+  /* --- Reset Bar --- */
+  body.alt1 .reset-bar { margin-top: 16px; padding-top: 12px; }
+  body.alt1 .reset-btn { font-size: 11px; padding: 6px 18px; }
+
+  /* --- Bottom Nav Bar (always shown in Alt1) --- */
   body.alt1 .instructions-toggle-btn,
   body.alt1 .theme-toggle,
   body.alt1 .compact-toggle,
@@ -2384,9 +2475,9 @@
 
   body.alt1 .save-indicator { bottom: 50px; }
 
-  /* Alt1 + compact: ultra-minimal overlay */
-  body.alt1.compact .app { padding: 8px 8px 44px; }
-  body.alt1.compact .header { padding: 8px 0 6px; margin-bottom: 8px; }
+  /* Alt1 + compact stacks for ultra-minimal overlay */
+  body.alt1.compact .app { padding: 6px 6px 44px; }
+  body.alt1.compact .header { padding: 6px 0 4px; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -3226,12 +3317,6 @@ function loadState() {
     }
   } catch (e) { /* corrupted data, start fresh */ }
 
-  // Alt1: auto-enable compact mode on first load if no saved preference
-  if (isAlt1 && !localStorage.getItem(STORAGE_KEY)) {
-    compactMode = true;
-    document.body.classList.add('compact');
-    document.getElementById('compactToggle').classList.add('active');
-  }
 }
 
 let toastTimeout = null;
