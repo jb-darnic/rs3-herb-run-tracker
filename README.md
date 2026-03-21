@@ -6,6 +6,20 @@ A profit-tracking companion for herb runs in RuneScape 3. Works as a standalone 
 
 ---
 
+## Screenshots
+
+![Dark Mode Overview](screenshots/dark-mode-overview.png)
+
+![Patch Route & Profit Breakdown](screenshots/patches-and-profit.png)
+
+![Profit Table](screenshots/profit-breakdown.png)
+
+| Light Mode | Compact Mode |
+|:---:|:---:|
+| ![Light Mode](screenshots/light-mode.png) | ![Compact Mode](screenshots/compact-mode.png) |
+
+---
+
 ## Install in Alt1
 
 Make sure [Alt1 Toolkit](https://runeapps.org/alt1) is running, then click:
