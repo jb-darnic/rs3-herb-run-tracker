@@ -1,0 +1,16 @@
+{
+  "appName": "RS3 Herb Run Tracker",
+  "description": "Track herb run profits, patch progress, regrow timers, and GE prices with Garden of Kharid Plant Power and compost calculations.",
+  "appUrl": "./herb-run-guide.html",
+  "configUrl": "./appconfig.json",
+  "iconUrl": "./icon.png",
+  "defaultWidth": 390,
+  "defaultHeight": 720,
+  "minWidth": 340,
+  "minHeight": 480,
+  "maxWidth": 500,
+  "maxHeight": 1200,
+  "requestHandlers": [],
+  "activators": [],
+  "permissions": "overlay"
+}

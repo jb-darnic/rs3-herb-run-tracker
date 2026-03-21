@@ -1,0 +1,4640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="alt1:configurl" content="appconfig.json">
+<title>RS3 Herb Run Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #d4a017;
+    --gold-dim: #a07a12;
+    --gold-bright: #e8b830;
+    --bg-deep: #0d0b07;
+    --bg-card: #161210;
+    --bg-card-hover: #1e1a16;
+    --bg-surface: #231e18;
+    --text: #e8dcc8;
+    --text-dim: #8a7d6a;
+    --text-bright: #f4ead6;
+    --green: #4a7a2e;
+    --green-bright: #6aad3d;
+    --red: #8c4a4a;
+    --red-bright: #bf6a6a;
+    --blue: #4a7a6a;
+    --purple: #6a5a40;
+    --border: #2a2418;
+    --checked-bg: #1a2610;
+    --checked-border: #3a6a20;
+    --wilderness: #3a1a1a;
+    --wilderness-border: #5a2a2a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* === ACCESSIBILITY: Focus States === */
+  *:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Small labels need extra contrast for accessibility */
+  .stat-card .stat-label,
+  .control-group label,
+  .ge-fetch-label,
+  .history-stat .hs-label,
+  .profit-table th,
+  .history-table th,
+  .sparkline-title,
+  .regrow-label,
+  .settings-title,
+  .patch-step {
+    color: #9a8d7a;
+  }
+
+  body {
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: 'Crimson Text', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(106,173,61,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(212,160,23,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(74,122,46,0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* === HEADER === */
+  .header {
+    text-align: center;
+    padding: 40px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--green), var(--gold), var(--green), transparent);
+  }
+
+  .header h1 {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-weight: 400;
+    font-size: 30px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(212,160,23,0.25), 0 2px 4px rgba(0,0,0,0.3);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .header .farming-icon {
+    width: 32px;
+    height: 32px;
+    filter: drop-shadow(0 0 8px rgba(106,173,61,0.3));
+    image-rendering: pixelated;
+    animation: herbSway 4s ease-in-out infinite;
+    transform-origin: bottom center;
+    flex-shrink: 0;
+  }
+
+  @keyframes herbSway {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(2deg) scale(1.02); }
+    75% { transform: rotate(-2deg) scale(1.02); }
+  }
+
+  /* subtitle removed */
+
+  /* === REGROW BANNER === */
+  .regrow-banner {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    display: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .regrow-banner.active { display: block; }
+
+  .regrow-banner.ready {
+    border-color: var(--green);
+    background: var(--checked-bg);
+    animation: readyPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes readyPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(109,194,75,0); }
+    50% { box-shadow: 0 0 20px 2px rgba(109,194,75,0.15); }
+  }
+
+  .regrow-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .regrow-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .regrow-icon { font-size: 22px; line-height: 1; }
+
+  .regrow-label {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  .regrow-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-top: 2px;
+  }
+
+  .regrow-banner.ready .regrow-time { color: var(--green-bright); }
+
+  .regrow-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .regrow-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .regrow-toggle input[type="checkbox"] {
+    appearance: none;
+    width: 36px;
+    height: 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .regrow-toggle input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .regrow-toggle input[type="checkbox"]:checked {
+    background: rgba(58,140,58,0.25);
+    border-color: var(--green);
+  }
+
+  .regrow-toggle input[type="checkbox"]:checked::after {
+    left: 18px;
+    background: var(--green-bright);
+  }
+
+  .regrow-toggle-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .regrow-dismiss {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .regrow-dismiss:hover { border-color: var(--red); color: var(--red-bright); }
+
+  .regrow-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--gold-dim);
+    transition: width 1s linear;
+  }
+
+  .regrow-banner.ready .regrow-progress-bar { background: var(--green-bright); width: 100% !important; }
+
+  /* === CONTROLS BAR === */
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .control-group {
+    flex: 1;
+    min-width: 180px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .control-group label {
+    display: block;
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--gold-dim);
+    margin-bottom: 8px;
+    font-weight: 400;
+  }
+
+  .control-group select {
+    width: 100%;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'Crimson Text', serif;
+    font-size: 16px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237a7568' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .control-group select:focus { outline: none; border-color: var(--gold-dim); }
+
+  .compost-note {
+    font-family: 'Crimson Text', serif;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .compost-note .disease-warn { color: #b87a3a; }
+  .compost-note .disease-safe { color: var(--green-bright); }
+
+  /* === TIMER === */
+  .timer-group { display: flex; align-items: center; gap: 12px; }
+
+  .timer-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 2px;
+    min-width: 90px;
+  }
+
+  .timer-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .timer-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .timer-btn.active { border-color: var(--green); color: var(--green-bright); }
+
+  /* === STATS ROW === */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 4px rgba(0,0,0,0.2);
+    position: relative;
+  }
+
+  /* Faint wood-grain texture for dark mode cards */
+  .patch-card::before,
+  .stat-card::before,
+  .control-group::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.15' numOctaves='3' seed='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  /* Ensure content sits above the texture */
+  .patch-main, .stat-card > *, .control-group > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Disable wood-grain in light mode */
+  body.light .patch-card::before,
+  body.light .stat-card::before,
+  body.light .control-group::before {
+    display: none;
+  }
+
+  .stat-card .stat-label {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+
+  .stat-card .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--gold);
+  }
+
+  .stat-card .stat-value.profit { color: var(--green-bright); }
+
+  /* Highlight profit-related stat cards */
+  .stat-card.stat-profit {
+    border-bottom: 2px solid var(--gold-dim);
+  }
+
+  /* === SECTION HEADERS === */
+  .section-header {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-weight: 400;
+    font-size: 17px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 36px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-header .section-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    opacity: 0.8;
+    color: var(--gold);
+  }
+  .section-header .section-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* === PATCH CARDS === */
+  .patch-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 4px rgba(0,0,0,0.15);
+  }
+
+  .patch-card:hover { background: var(--bg-card-hover); border-color: #3a3020; }
+
+  .patch-card.checked { background: var(--checked-bg); border-color: var(--checked-border); }
+  .patch-card.checked .patch-main { opacity: 0.6; }
+  .patch-card.checked .patch-name { text-decoration: line-through; text-decoration-color: var(--green); }
+  .patch-card.checked .check-box { background: var(--green); border-color: var(--green); }
+  .patch-card.checked .check-box svg { opacity: 1; }
+
+  .patch-card.died {
+    background: rgba(140,74,74,0.08);
+    border-color: var(--red);
+  }
+  .patch-card.died .patch-main { opacity: 0.5; }
+  .patch-card.died .patch-name {
+    text-decoration: line-through;
+    text-decoration-color: var(--red-bright);
+    color: var(--text-dim);
+  }
+  .patch-card.died .check-box { background: var(--red); border-color: var(--red); }
+  .patch-card.died .check-box svg { opacity: 0; }
+  .patch-card.died .died-icon { opacity: 1; }
+
+  .patch-card.wilderness { border-left: 3px solid var(--red); }
+  .patch-card.wilderness.checked { border-left-color: var(--green); }
+  .patch-card.wilderness.died { border-left-color: var(--red-bright); }
+  .patch-card.disease-free { border-left: 3px solid var(--green); }
+  .patch-card.disease-free.died { border-left-color: var(--red-bright); }
+
+  .patch-card.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    filter: grayscale(0.5);
+  }
+  .patch-card.disabled .disable-btn { pointer-events: auto; opacity: 1; }
+
+  /* === DRAG & DROP === */
+  .patch-card { user-select: none; }
+  .patch-card.dragging {
+    opacity: 0.4;
+    transform: scale(0.97);
+    box-shadow: 0 0 0 2px var(--gold-dim);
+  }
+  .patch-card.drag-over {
+    border-top: 2px solid var(--gold);
+    margin-top: -2px;
+  }
+
+  .drag-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: var(--border);
+    transition: color 0.2s;
+    z-index: 2;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  .drag-handle:hover { color: var(--gold-dim); }
+  .drag-handle svg { pointer-events: none; }
+
+  .patch-card.disabled .drag-handle { pointer-events: auto; cursor: grab; }
+
+  /* Shift patch-main to make room for drag handle */
+  .patch-main { padding-left: 28px; }
+
+  .disable-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    opacity: 0.3;
+    transition: all 0.2s;
+    z-index: 3;
+    line-height: 1;
+  }
+  .disable-btn:hover { opacity: 1; color: var(--red-bright); border-color: var(--red); }
+  .patch-card.disabled .disable-btn { color: var(--green-bright); border-color: var(--green); }
+
+  .patch-main {
+    display: grid;
+    grid-template-columns: 42px 1fr auto;
+    align-items: center;
+    padding: 16px;
+    gap: 16px;
+    transition: opacity 0.3s;
+  }
+
+  .check-box {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .check-box svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    stroke: white;
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .patch-info { min-width: 0; }
+
+  .patch-top-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+
+  .patch-step {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold-dim);
+    background: rgba(212,160,23,0.12);
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+  }
+
+  .patch-name {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-weight: 400;
+    font-size: 16px;
+    color: var(--text-bright);
+    transition: all 0.3s;
+  }
+
+  .patch-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+  }
+
+  .tag.disease-free { background: rgba(74,122,46,0.22); color: var(--green-bright); }
+  .tag.wilderness-tag { background: rgba(140,74,74,0.22); color: var(--red-bright); }
+  .tag.quest { background: rgba(212,160,23,0.18); color: var(--gold); }
+  .tag.bank { background: rgba(74,122,46,0.18); color: #7aab7a; }
+
+  .patch-teleport { font-size: 14px; color: var(--text-dim); margin-top: 2px; }
+  .patch-teleport strong { color: var(--text); font-weight: 600; }
+
+  .patch-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .patch-time .time-value { font-size: 18px; color: var(--text); display: block; }
+
+  /* === EXPANDABLE DETAILS === */
+  .patch-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    background: rgba(0,0,0,0.15);
+  }
+
+  .patch-card.expanded .patch-details { max-height: 200px; }
+
+  .patch-details-inner {
+    padding: 0 16px 16px 74px;
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .expand-toggle {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    transition: color 0.2s;
+    position: absolute;
+    right: 16px;
+    bottom: 8px;
+  }
+
+  .expand-toggle:hover { color: var(--gold); }
+  .patch-card.expanded .expand-toggle svg { transform: rotate(180deg); }
+
+  /* === DIED BUTTON === */
+  .died-btn {
+    position: absolute;
+    right: 40px;
+    bottom: 6px;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: all 0.2s;
+    opacity: 0.4;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .died-btn:hover { opacity: 1; color: var(--red-bright); border-color: var(--red); }
+  .patch-card.died .died-btn { opacity: 1; color: var(--red-bright); border-color: var(--red); }
+
+  .died-btn .died-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .died-icon {
+    position: absolute;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  /* === SETTINGS PANEL (Teleport Unlocks) === */
+  .settings-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+  }
+
+  .settings-header:hover { background: var(--bg-card-hover); }
+
+  .settings-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .settings-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--gold-dim);
+    font-weight: 400;
+  }
+
+  .settings-summary {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .settings-chevron {
+    transition: transform 0.2s;
+    color: var(--text-dim);
+  }
+
+  .settings-panel.open .settings-chevron { transform: rotate(180deg); }
+
+  .settings-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .settings-panel.open .settings-body { max-height: 300px; }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    padding: 0 16px 16px;
+  }
+
+  .teleport-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+  }
+
+  .teleport-toggle:hover { border-color: #3a3020; }
+  .teleport-toggle.active { border-color: var(--green); background: rgba(58,140,58,0.06); }
+
+  .teleport-toggle input[type="checkbox"] {
+    appearance: none;
+    width: 32px;
+    height: 18px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .teleport-toggle input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .teleport-toggle input[type="checkbox"]:checked {
+    background: rgba(58,140,58,0.25);
+    border-color: var(--green);
+  }
+
+  .teleport-toggle input[type="checkbox"]:checked::after {
+    left: 16px;
+    background: var(--green-bright);
+  }
+
+  .teleport-toggle-info { min-width: 0; }
+
+  .teleport-toggle-name {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-bright);
+    line-height: 1.3;
+  }
+
+  .teleport-toggle-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+
+  .teleport-toggle.active .teleport-toggle-detail { color: var(--green-bright); }
+
+  /* === FARMING UNLOCK TOGGLES === */
+  .unlock-icon {
+    width: 28px;
+    height: 28px;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+  }
+  .unlock-grid { gap: 8px; }
+  .unlock-select {
+    width: 100%;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    color: var(--text-bright);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Crimson Text', serif;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 2px;
+  }
+  .greenfingers-toggle { cursor: default; }
+  .effective-yield-display {
+    font-family: 'MedievalSharp', serif;
+    font-size: 14px;
+    color: var(--gold);
+    text-align: center;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background: rgba(212,160,23,0.06);
+    border: 1px solid rgba(212,160,23,0.15);
+    border-radius: 6px;
+  }
+  .effective-yield-display span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gold-bright);
+  }
+
+  /* === PROFIT TABLE === */
+  .profit-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 15px; }
+
+  .profit-table th {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    font-weight: 400;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profit-table th:last-child, .profit-table td:last-child { text-align: right; }
+
+  .profit-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(42,36,24,0.4);
+    font-family: 'Crimson Text', serif;
+  }
+
+  .profit-table tr:last-child td { border-bottom: none; }
+
+  .profit-table .herb-name { font-weight: 600; color: var(--text-bright); }
+  .profit-table .gp { font-family: 'JetBrains Mono', monospace; font-size: 14px; }
+  .profit-table .gp.positive { color: var(--green-bright); }
+  .profit-table .gp.negative { color: var(--red-bright); }
+  .profit-table .gp.highlight { color: var(--gold); font-weight: 600; }
+
+  .profit-table .total-row td {
+    border-top: 1px solid var(--gold-dim);
+    font-weight: 700;
+    padding-top: 14px;
+  }
+
+  /* === UPGRADES === */
+  /* === PRE-RUN LOADOUT === */
+  .loadout-section {
+    margin-top: 16px;
+    margin-bottom: 8px;
+  }
+
+  .loadout-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+    transition: background 0.2s;
+  }
+
+  .loadout-section:not(.open) .loadout-header { border-radius: 8px; }
+  .loadout-header:hover { background: var(--bg-card-hover); }
+
+  .loadout-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .loadout-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+    font-weight: 400;
+  }
+
+  .loadout-progress {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .loadout-progress.complete { color: var(--green-bright); }
+
+  .loadout-chevron {
+    transition: transform 0.2s;
+    color: var(--text-dim);
+  }
+
+  .loadout-section.open .loadout-chevron { transform: rotate(180deg); }
+
+  .loadout-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+  }
+
+  .loadout-section.open .loadout-body { max-height: 600px; }
+
+  .loadout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px;
+    padding: 12px 14px;
+  }
+
+  .loadout-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+  }
+
+  .loadout-item:hover { border-color: #3a3020; background: var(--bg-card-hover); }
+
+  .loadout-item.checked {
+    border-color: var(--checked-border);
+    background: var(--checked-bg);
+    opacity: 0.6;
+  }
+
+  .loadout-item.checked .loadout-item-name { text-decoration: line-through; color: var(--text-dim); }
+
+  .loadout-item-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+    object-fit: contain;
+    border-radius: 2px;
+    background: rgba(0,0,0,0.15);
+  }
+
+  .loadout-item-icon.fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: rgba(212,160,23,0.08);
+    border: 1px solid var(--border);
+  }
+
+  .loadout-check {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 3px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .loadout-item.checked .loadout-check {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .loadout-check svg {
+    width: 12px;
+    height: 12px;
+    stroke: white;
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .loadout-item.checked .loadout-check svg { opacity: 1; }
+
+  .loadout-item-info { min-width: 0; }
+
+  .loadout-item-name {
+    font-family: 'Crimson Text', serif;
+    font-size: 14px;
+    color: var(--text-bright);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s;
+  }
+
+  .loadout-item-qty {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+
+  .loadout-note {
+    padding: 8px 14px 14px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    border-top: 1px solid rgba(42,36,24,0.3);
+    margin-top: 4px;
+  }
+
+  .loadout-note strong { color: var(--gold); font-weight: 600; }
+
+  body.compact .loadout-section { display: none; }
+
+  /* === NOTES === */
+  .note-box {
+    background: rgba(212,160,23,0.06);
+    border: 1px solid rgba(212,160,23,0.15);
+    border-radius: 6px;
+    padding: 16px 18px;
+    margin-top: 16px;
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .note-box strong { color: var(--gold); font-weight: 600; }
+
+  /* === RESET BUTTON === */
+  .reset-bar {
+    text-align: center;
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 10px 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover { border-color: var(--red); color: var(--red-bright); }
+
+  /* === HISTORY DASHBOARD === */
+  .history-section {
+    margin-top: 36px;
+  }
+
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .history-header:hover .history-title { color: var(--gold-bright); }
+
+  .history-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .history-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-weight: 400;
+    font-size: 17px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    transition: color 0.2s;
+  }
+
+  .history-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .history-chevron {
+    transition: transform 0.2s;
+    color: var(--text-dim);
+  }
+
+  .history-section.open .history-chevron { transform: rotate(180deg); }
+
+  .history-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+
+  .history-section.open .history-body { max-height: 2000px; }
+
+  .history-empty {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 15px;
+  }
+
+  /* Summary stats row */
+  .history-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .history-stat {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .history-stat .hs-label {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .history-stat .hs-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--gold);
+  }
+
+  .history-stat .hs-value.profit { color: var(--green-bright); }
+
+  /* Sparkline canvas */
+  .sparkline-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+
+  .sparkline-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .sparkline-canvas {
+    width: 100%;
+    height: 60px;
+    display: block;
+  }
+
+  /* History table */
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .history-table th {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .history-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(42,36,24,0.3);
+    font-family: 'Crimson Text', serif;
+    color: var(--text);
+  }
+
+  .history-table tr:last-child td { border-bottom: none; }
+  .history-table tr:hover td { background: rgba(212,160,23,0.04); }
+
+  .history-table .ht-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  .history-table .ht-profit { color: var(--green-bright); }
+  .history-table .ht-loss { color: var(--red-bright); }
+  .history-table .ht-dim { color: var(--text-dim); font-size: 13px; }
+
+  .history-clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    margin-top: 12px;
+    display: block;
+    margin-left: auto;
+  }
+
+  .history-clear-btn:hover { border-color: var(--red); color: var(--red-bright); }
+
+  @media (max-width: 640px) {
+    .history-summary { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* === PROGRESS BAR === */
+  .progress-bar-wrap {
+    margin-bottom: 24px;
+    position: relative;
+  }
+
+  .progress-bar-track {
+    height: 6px;
+    background: var(--bg-surface);
+    border: 1px solid rgba(212,160,23,0.15);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--gold-dim);
+    border-radius: 3px;
+    transition: width 0.4s ease, background 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-bar-fill.complete {
+    background: var(--green-bright);
+    animation: progressGlow 1.5s ease-in-out;
+  }
+
+  @keyframes progressGlow {
+    0% { box-shadow: 0 0 0 0 rgba(109,194,75,0); }
+    50% { box-shadow: 0 0 12px 4px rgba(109,194,75,0.4); }
+    100% { box-shadow: 0 0 0 0 rgba(109,194,75,0); }
+  }
+
+  .progress-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .progress-bar-label .pbl-pct { color: var(--gold); font-weight: 600; }
+  .progress-bar-fill.complete ~ .progress-bar-label .pbl-pct,
+  .progress-bar-wrap.complete .pbl-pct { color: var(--green-bright); }
+
+  /* === COMPACT MODE TOGGLE === */
+  .compact-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 200;
+    padding: 0;
+  }
+
+  .compact-toggle:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .compact-toggle.active { border-color: var(--gold); color: var(--gold); background: rgba(212,160,23,0.10); }
+  .compact-toggle svg { pointer-events: none; }
+
+  .sound-toggle {
+    position: fixed;
+    top: 16px;
+    right: 100px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 200;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .sound-toggle:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .sound-toggle.active { border-color: var(--gold); color: var(--gold); background: rgba(212,160,23,0.10); }
+
+  /* === COMPACT MODE === */
+  body.compact .app { max-width: 380px; padding: 12px 12px 40px; }
+  body.compact .header { padding: 16px 0 12px; margin-bottom: 16px; }
+  body.compact .header h1 { font-size: 16px; letter-spacing: 2px; }
+  /* subtitle removed */
+  body.compact .header::after { display: none; }
+
+  body.compact .regrow-banner { padding: 12px 14px; margin-bottom: 12px; }
+  body.compact .regrow-time { font-size: 20px; }
+  body.compact .regrow-label { font-size: 9px; }
+  body.compact .regrow-controls { gap: 6px; }
+
+  body.compact .controls,
+  body.compact .settings-panel,
+  body.compact .note-box,
+  body.compact .section-header,
+  body.compact .profit-table-wrap,
+  body.compact .history-section,
+  body.compact .reset-bar { display: none !important; }
+
+  body.compact .progress-bar-wrap { margin-bottom: 12px; }
+
+  body.compact .stats-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  body.compact .stat-card { padding: 8px 10px; }
+  body.compact .stat-card .stat-label { font-size: 8px; letter-spacing: 1px; }
+  body.compact .stat-card .stat-value { font-size: 15px; }
+
+  /* Hide less important stats in compact */
+  body.compact .stat-card:nth-child(4),
+  body.compact .stat-card:nth-child(5) { display: none; }
+
+  body.compact .patch-card { margin-bottom: 4px; border-radius: 5px; }
+  body.compact .patch-main {
+    padding: 8px 8px 8px 24px;
+    gap: 8px;
+    grid-template-columns: 28px 1fr auto;
+  }
+  body.compact .check-box { width: 22px; height: 22px; }
+  body.compact .check-box svg { width: 13px; height: 13px; }
+  body.compact .patch-step { font-size: 10px; padding: 1px 5px; }
+  body.compact .patch-name { font-size: 13px; }
+  body.compact .patch-tags { display: none; }
+  body.compact .patch-teleport { display: none; }
+  body.compact .patch-time .time-value { font-size: 14px; }
+  body.compact .patch-time { font-size: 11px; }
+  body.compact .patch-details { display: none; }
+  body.compact .expand-toggle { display: none; }
+  body.compact .died-btn { display: none; }
+  body.compact .disable-btn { display: none; }
+  body.compact .drag-handle { width: 16px; }
+
+  /* Compact timer bar below stats */
+  body.compact .compact-timer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .compact-timer-bar { display: none; }
+
+  body.compact .compact-timer-bar .timer-display {
+    font-size: 20px;
+    min-width: 60px;
+  }
+
+  /* === KEYBOARD SHORTCUT OVERLAY === */
+  .shortcut-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    backdrop-filter: blur(4px);
+  }
+
+  .shortcut-overlay.show { display: flex; }
+
+  .shortcut-modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    max-width: 420px;
+    width: 90%;
+  }
+
+  .shortcut-modal h2 {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+    text-align: center;
+  }
+
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(42,36,24,0.3);
+  }
+
+  .shortcut-row:last-child { border-bottom: none; }
+
+  .shortcut-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .shortcut-key kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    color: var(--gold);
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .shortcut-desc {
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  .shortcut-close {
+    display: block;
+    margin: 18px auto 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .shortcut-close:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  /* === GE PRICE FETCH === */
+  .ge-fetch-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ge-fetch-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ge-fetch-label {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  .ge-fetch-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .ge-fetch-status.updated { color: var(--green-bright); }
+  .ge-fetch-status.error { color: var(--red-bright); }
+  .ge-fetch-status.loading { color: var(--gold); }
+
+  .ge-fetch-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ge-fetch-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .ge-fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .ge-fetch-btn .spinner {
+    display: none;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .ge-fetch-btn.loading .spinner { display: inline-block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  body.compact .ge-fetch-bar { display: none; }
+
+  /* === SAVE INDICATOR === */
+  .save-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--checked-border);
+    color: var(--green-bright);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .save-indicator.show { opacity: 1; transform: translateY(0); }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 640px) {
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .controls { flex-direction: column; }
+    .patch-main { grid-template-columns: 36px 1fr; }
+    .patch-time { grid-column: 2; text-align: left; margin-top: 4px; }
+    .patch-details-inner { padding-left: 52px; }
+    .header h1 { font-size: 22px; letter-spacing: 2px; }
+    .regrow-top { flex-direction: column; align-items: flex-start; }
+
+    /* Wider drag handle for touch targets */
+    .drag-handle { width: 32px; }
+    .patch-main { padding-left: 38px; }
+
+    /* Mobile bottom nav bar */
+    .instructions-toggle-btn,
+    .theme-toggle,
+    .compact-toggle,
+    .sound-toggle {
+      position: fixed;
+      top: auto;
+      right: auto;
+      bottom: 0;
+      width: 25%;
+      height: 48px;
+      border-radius: 0;
+      border: none;
+      border-top: 1px solid var(--border);
+      background: var(--bg-card);
+      z-index: 250;
+      font-size: 13px;
+      gap: 4px;
+    }
+    .instructions-toggle-btn { left: 0; border-right: 1px solid var(--border); }
+    .theme-toggle { left: 25%; border-right: 1px solid var(--border); }
+    .compact-toggle { left: 50%; border-right: 1px solid var(--border); }
+    .sound-toggle { left: 75%; }
+
+    /* Add labels below icons on mobile bottom bar */
+    .instructions-toggle-btn::after { content: 'Guide'; font-family: 'MedievalSharp', serif; font-size: 9px; letter-spacing: 0.5px; display: block; margin-top: 1px; }
+    .theme-toggle::after { content: 'Theme'; font-family: 'MedievalSharp', serif; font-size: 9px; letter-spacing: 0.5px; display: block; margin-top: 1px; }
+    .compact-toggle::after { content: 'Compact'; font-family: 'MedievalSharp', serif; font-size: 9px; letter-spacing: 0.5px; display: block; margin-top: 1px; }
+    .sound-toggle::after { content: 'Sound'; font-family: 'MedievalSharp', serif; font-size: 9px; letter-spacing: 0.5px; display: block; margin-top: 1px; }
+
+    /* Make buttons flex column for icon + label */
+    .instructions-toggle-btn,
+    .theme-toggle,
+    .compact-toggle,
+    .sound-toggle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .compact-toggle svg { width: 16px; height: 16px; }
+    .instructions-toggle-btn svg { width: 16px; height: 16px; }
+    .theme-toggle { font-size: 16px; }
+    .sound-toggle { font-size: 14px; }
+
+    /* Add bottom padding to body so content doesn't hide behind nav */
+    .app { padding-bottom: 70px !important; }
+
+    /* Move save indicator above bottom nav */
+    .save-indicator { bottom: 58px; }
+
+    /* Larger touch targets for loadout & teleport toggles */
+    .loadout-item { padding: 10px 12px; }
+    .teleport-toggle { padding: 12px 14px; }
+
+    /* Instructions grid single column on mobile */
+    .instructions-grid { grid-template-columns: 1fr; }
+  }
+
+  /* =========================================
+     LIGHT MODE — Farming Cape inspired
+     Rich greens on warm parchment
+     ========================================= */
+  body.light {
+    --gold: #8a6a10;
+    --gold-dim: #a08020;
+    --gold-bright: #6a5010;
+    --bg-deep: #f0e8d0;
+    --bg-card: #f8f4e8;
+    --bg-card-hover: #eee8d4;
+    --bg-surface: #e4dcc6;
+    --text: #2a2418;
+    --text-dim: #6a5e48;
+    --text-bright: #1a1610;
+    --green: #2d6b1a;
+    --green-bright: #1d5a14;
+    --red: #9a3a3a;
+    --red-bright: #b04040;
+    --blue: #3a6a5a;
+    --purple: #6a5a30;
+    --border: #c8bfa0;
+    --checked-bg: #deecd0;
+    --checked-border: #7aaa5a;
+    --wilderness: #f0e0e0;
+    --wilderness-border: #c08080;
+  }
+
+  body.light { background: var(--bg-deep); }
+
+  body.light::before {
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(45,107,26,0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(160,128,32,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(74,122,46,0.02) 0%, transparent 70%);
+  }
+
+  body.light::after { opacity: 0.08; }
+
+  body.light .header h1 {
+    text-shadow: none;
+    color: #2d6b1a;
+  }
+
+  body.light .header::after {
+    background: linear-gradient(90deg, transparent, #2d6b1a, #a08020, #2d6b1a, transparent);
+  }
+
+  body.light .header .farming-icon {
+    filter: drop-shadow(0 0 4px rgba(42,122,42,0.3));
+  }
+
+  /* subtitle removed */
+
+  /* Cards get subtle green-tinted shadows in light mode */
+  body.light .patch-card,
+  body.light .stat-card,
+  body.light .control-group,
+  body.light .settings-panel,
+  body.light .loadout-section .loadout-header,
+  body.light .loadout-section .loadout-body,
+  body.light .ge-fetch-bar,
+  body.light .regrow-banner {
+    box-shadow: 0 1px 3px rgba(60,40,10,0.08);
+  }
+
+  body.light .patch-card:hover {
+    box-shadow: 0 2px 8px rgba(60,40,10,0.12);
+  }
+
+  /* Override hardcoded rgba backgrounds */
+  body.light .patch-card.died { background: rgba(180,60,60,0.06); }
+  body.light .patch-step { background: rgba(45,107,26,0.12); color: #2d6b1a; }
+  body.light .tag.disease-free { background: rgba(45,107,26,0.15); }
+  body.light .tag.wilderness-tag { background: rgba(160,60,60,0.12); }
+  body.light .tag.quest { background: rgba(160,128,32,0.15); color: #6a5010; }
+  body.light .tag.bank { background: rgba(45,107,26,0.12); color: #2d6b1a; }
+  body.light .patch-details { background: rgba(60,40,10,0.03); }
+  body.light .patch-card.checked { background: #e4ecd0; border-color: #7aaa5a; }
+  body.light .patch-card.checked .patch-main { opacity: 0.5; }
+
+  body.light .profit-table td { border-bottom-color: rgba(160,128,32,0.1); }
+  body.light .profit-table .total-row td { border-top-color: var(--gold-dim); }
+
+  body.light .history-table td { border-bottom-color: rgba(160,128,32,0.08); }
+  body.light .history-table tr:hover td { background: rgba(45,107,26,0.04); }
+  body.light .history-stat { background: var(--bg-surface); }
+
+  body.light .note-box {
+    background: rgba(160,128,32,0.06);
+    border-color: rgba(160,128,32,0.18);
+  }
+
+  body.light .loadout-item { background: var(--bg-surface); }
+  body.light .loadout-item.checked { background: #deecd0; }
+  body.light .loadout-note { border-top-color: rgba(160,128,32,0.12); }
+  body.light .loadout-item-icon { background: rgba(45,107,26,0.06); }
+
+  body.light .regrow-toggle input[type="checkbox"] { background: var(--bg-surface); }
+  body.light .teleport-toggle input[type="checkbox"] { background: var(--bg-surface); }
+  body.light .teleport-toggle.active { background: rgba(42,122,42,0.06); }
+  body.light .unlock-select { background: var(--bg-surface); }
+  body.light .effective-yield-display { background: rgba(138,106,16,0.06); border-color: rgba(138,106,16,0.15); }
+
+  body.light .shortcut-overlay { background: rgba(255,255,255,0.7); }
+  body.light .shortcut-key kbd { background: var(--bg-surface); color: #2d6b1a; }
+
+  body.light .compact-toggle { background: var(--bg-card); }
+  body.light .compact-toggle.active { background: rgba(45,107,26,0.08); border-color: var(--green); color: var(--green); }
+
+  body.light .theme-toggle { background: var(--bg-card); }
+  body.light .sound-toggle { background: var(--bg-card); }
+  body.light .sound-toggle.active { background: rgba(45,107,26,0.08); border-color: var(--green); color: var(--green); }
+
+  body.light .save-indicator { background: var(--bg-card); border-color: #7aaa5a; }
+
+  /* Override dark-mode inset shadows for light mode */
+  body.light .patch-card,
+  body.light .stat-card {
+    box-shadow: 0 1px 3px rgba(60,40,10,0.08);
+  }
+  body.light .patch-card:hover {
+    box-shadow: 0 2px 8px rgba(60,40,10,0.12);
+  }
+
+  /* Light mode instructions panel */
+  body.light .instructions-panel {
+    box-shadow: 0 1px 4px rgba(60,40,10,0.1);
+  }
+  body.light .instr-card {
+    background: var(--bg-card);
+    border-color: var(--border);
+  }
+  body.light .instr-card:hover { border-color: var(--gold-dim); }
+  body.light .instr-card-num { background: rgba(138,106,16,0.12); }
+  body.light .instr-tips {
+    background: rgba(138,106,16,0.06);
+    border-color: rgba(138,106,16,0.15);
+  }
+
+  /* Light mode reset confirm and toast */
+  body.light .reset-confirm-overlay { background: rgba(240,232,208,0.7); }
+  body.light .reset-confirm-modal { box-shadow: 0 4px 24px rgba(60,40,10,0.15); }
+  body.light .run-complete-toast { box-shadow: 0 0 40px rgba(138,106,16,0.2), 0 8px 24px rgba(60,40,10,0.15); }
+
+  /* Profit stat cards gold border in light mode */
+  body.light .stat-card.stat-profit { border-bottom: 2px solid var(--gold-dim); }
+
+  /* Small label contrast bump for light mode */
+  body.light .stat-card .stat-label,
+  body.light .control-group label,
+  body.light .ge-fetch-label,
+  body.light .history-stat .hs-label,
+  body.light .profit-table th,
+  body.light .history-table th,
+  body.light .sparkline-title,
+  body.light .regrow-label,
+  body.light .settings-title,
+  body.light .patch-step {
+    color: #5a4e38;
+  }
+
+  /* Light mode section icons */
+  body.light .section-header .section-icon { color: var(--green); }
+
+  body.light .control-group select {
+    background: var(--bg-surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236a5e48' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  body.light .progress-bar-track { background: var(--bg-surface); }
+
+  body.light .sparkline-container { background: var(--bg-card); }
+
+  body.light .ge-fetch-btn.loading .spinner { border-color: var(--border); border-top-color: var(--green); }
+
+  /* === THEME TOGGLE BUTTON === */
+  .theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 58px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 200;
+    padding: 0;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .theme-toggle:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  /* === RUN COMPLETE CELEBRATION === */
+  .run-complete-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: var(--bg-card);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 28px 40px;
+    text-align: center;
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 60px rgba(212,160,23,0.3), 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .run-complete-toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+  }
+
+  .run-complete-toast .rct-icon { font-size: 36px; margin-bottom: 8px; }
+
+  .run-complete-toast .rct-title {
+    font-family: 'MedievalSharp', serif;
+    font-size: 22px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+    text-shadow: 0 0 20px rgba(212,160,23,0.3);
+  }
+
+  .run-complete-toast .rct-profit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--green-bright);
+    margin-bottom: 4px;
+  }
+
+  .run-complete-toast .rct-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+
+  @keyframes headerGoldShimmer {
+    0% { text-shadow: 0 0 30px rgba(212,160,23,0.25), 0 2px 4px rgba(0,0,0,0.3); }
+    50% { text-shadow: 0 0 50px rgba(212,160,23,0.6), 0 0 80px rgba(232,184,48,0.3), 0 2px 4px rgba(0,0,0,0.3); }
+    100% { text-shadow: 0 0 30px rgba(212,160,23,0.25), 0 2px 4px rgba(0,0,0,0.3); }
+  }
+
+  .header h1.shimmer {
+    animation: headerGoldShimmer 1.5s ease-in-out;
+  }
+
+  body.compact .run-complete-toast { display: none; }
+
+  /* === RESET CONFIRM OVERLAY === */
+  .reset-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 400;
+    backdrop-filter: blur(3px);
+  }
+
+  .reset-confirm-overlay.show { display: flex; }
+
+  .reset-confirm-modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    max-width: 360px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+
+  .reset-confirm-modal .rcm-icon { font-size: 28px; margin-bottom: 8px; }
+
+  .reset-confirm-modal .rcm-title {
+    font-family: 'MedievalSharp', serif;
+    font-size: 17px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .reset-confirm-modal .rcm-text {
+    font-family: 'Crimson Text', serif;
+    font-size: 15px;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .reset-confirm-modal .rcm-btns {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .reset-confirm-modal .rcm-btn {
+    font-family: 'MedievalSharp', serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 8px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    transition: all 0.2s;
+  }
+
+  .reset-confirm-modal .rcm-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  .reset-confirm-modal .rcm-btn.danger {
+    border-color: var(--red);
+    color: var(--red-bright);
+  }
+
+  .reset-confirm-modal .rcm-btn.danger:hover {
+    background: rgba(140,74,74,0.15);
+  }
+
+  /* === INSTRUCTIONS PANEL === */
+  .instructions-toggle-btn {
+    position: fixed;
+    top: 16px;
+    right: 142px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 200;
+    padding: 0;
+    font-family: 'MedievalSharp', serif;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .instructions-toggle-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .instructions-toggle-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(212,160,23,0.10); }
+
+  body.light .instructions-toggle-btn { background: var(--bg-card); }
+
+  .instructions-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 28px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+    opacity: 0;
+    margin-bottom: 0;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .instructions-panel.open {
+    max-height: 1200px;
+    opacity: 1;
+    margin-bottom: 28px;
+  }
+
+  .instructions-inner {
+    padding: 24px 28px;
+  }
+
+  .instructions-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .instructions-title .instr-icon {
+    font-size: 22px;
+    filter: drop-shadow(0 0 6px rgba(212,160,23,0.3));
+  }
+
+  .instructions-subtitle {
+    font-family: 'Crimson Text', serif;
+    font-size: 14px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    font-style: italic;
+  }
+
+  .instructions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .instr-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .instr-card:hover { border-color: var(--gold-dim); }
+
+  .instr-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .instr-card-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    background: rgba(212,160,23,0.12);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .instr-card-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-bright);
+    letter-spacing: 0.5px;
+  }
+
+  .instr-card-text {
+    font-family: 'Crimson Text', serif;
+    font-size: 15px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .instr-card-text strong { color: var(--text); font-weight: 600; }
+
+  .instr-tips {
+    background: rgba(212,160,23,0.06);
+    border: 1px solid rgba(212,160,23,0.12);
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+
+  .instr-tips-title {
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+
+  .instr-tips-text {
+    font-family: 'Crimson Text', serif;
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .instr-tips-text strong { color: var(--text); }
+
+  .instr-dismiss {
+    display: block;
+    margin: 14px auto 0;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 7px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'MedievalSharp', 'Cinzel', serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    transition: all 0.2s;
+  }
+
+  .instr-dismiss:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  body.compact .instructions-panel { display: none; }
+  body.compact .instructions-toggle-btn { display: none; }
+
+  /* =========================================
+     ALT1 TOOLKIT — Panel optimizations
+     When running inside Alt1, the body gets
+     class "alt1" for targeted CSS.
+     ========================================= */
+  body.alt1 {
+    background: var(--bg-deep);
+    overflow-x: hidden;
+  }
+  body.alt1 .app {
+    max-width: 100%;
+    padding: 12px 10px 50px;
+  }
+  body.alt1 .header {
+    padding: 12px 0 10px;
+    margin-bottom: 12px;
+  }
+  body.alt1 .header h1 {
+    font-size: 16px;
+    letter-spacing: 2px;
+  }
+  body.alt1 .header .subtitle {
+    font-size: 10px;
+  }
+  body.alt1 .header::after { display: none; }
+
+  /* Tighter stats in Alt1 panel */
+  body.alt1 .stats-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  body.alt1 .stat-card { padding: 8px 8px; }
+  body.alt1 .stat-card .stat-label { font-size: 8px; }
+  body.alt1 .stat-card .stat-value { font-size: 14px; }
+
+  /* Hide decorative backgrounds that waste GPU in overlay */
+  body.alt1::before,
+  body.alt1::after { display: none; }
+
+  /* Compact regrow banner */
+  body.alt1 .regrow-banner { padding: 10px 12px; margin-bottom: 10px; }
+  body.alt1 .regrow-time { font-size: 20px; }
+  body.alt1 .regrow-label { font-size: 9px; }
+
+  /* Smaller patch cards */
+  body.alt1 .patch-card { margin-bottom: 4px; }
+  body.alt1 .patch-main { padding: 8px 10px; }
+  body.alt1 .patch-name { font-size: 13px; }
+
+  /* Move toggle buttons into a single row at bottom */
+  body.alt1 .instructions-toggle-btn,
+  body.alt1 .theme-toggle,
+  body.alt1 .compact-toggle,
+  body.alt1 .sound-toggle {
+    position: fixed;
+    top: auto;
+    right: auto;
+    bottom: 0;
+    width: 25%;
+    height: 40px;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+    z-index: 250;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  body.alt1 .instructions-toggle-btn { left: 0; border-right: 1px solid var(--border); }
+  body.alt1 .theme-toggle { left: 25%; border-right: 1px solid var(--border); }
+  body.alt1 .compact-toggle { left: 50%; border-right: 1px solid var(--border); }
+  body.alt1 .sound-toggle { left: 75%; }
+
+  body.alt1 .instructions-toggle-btn::after { content: 'Guide'; font-family: 'MedievalSharp', serif; font-size: 8px; display: block; }
+  body.alt1 .theme-toggle::after { content: 'Theme'; font-family: 'MedievalSharp', serif; font-size: 8px; display: block; }
+  body.alt1 .compact-toggle::after { content: 'Compact'; font-family: 'MedievalSharp', serif; font-size: 8px; display: block; }
+  body.alt1 .sound-toggle::after { content: 'Sound'; font-family: 'MedievalSharp', serif; font-size: 8px; display: block; }
+
+  body.alt1 .compact-toggle svg,
+  body.alt1 .instructions-toggle-btn svg { width: 14px; height: 14px; }
+  body.alt1 .theme-toggle { font-size: 14px; }
+  body.alt1 .sound-toggle { font-size: 13px; }
+
+  body.alt1 .save-indicator { bottom: 50px; }
+
+  /* Alt1 + compact: ultra-minimal overlay */
+  body.alt1.compact .app { padding: 8px 8px 44px; }
+  body.alt1.compact .header { padding: 8px 0 6px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="alt1-install-banner" id="alt1InstallBanner" style="display:none; background: linear-gradient(135deg, #1a2610, #0d1a08); border: 1px solid #3a6a20; border-radius: 8px; padding: 10px 14px; margin: 0 auto 12px; max-width: 860px; text-align: center; font-family: 'MedievalSharp', serif; font-size: 13px; color: #b8d8a0;">
+  <span style="margin-right: 6px;">&#128268;</span>
+  <strong>Use this as an Alt1 plugin!</strong>
+  <a href="alt1://addapp/__BASEURL__appconfig.json" style="color: #6dc24b; text-decoration: underline; margin-left: 4px;">Click here to install</a>
+  <span style="color: #6a8a5a; margin-left: 6px; font-size: 11px;">(requires Alt1 Toolkit running)</span>
+  <button onclick="document.getElementById('alt1InstallBanner').style.display='none'" style="float: right; background: none; border: none; color: #6a8a5a; cursor: pointer; font-size: 16px; line-height: 1;" title="Dismiss">&times;</button>
+</div>
+<div class="app">
+  <div class="header">
+    <h1><img class="farming-icon" src="https://runescape.wiki/images/thumb/Farming-icon.png/42px-Farming-icon.png?a1230" alt="Farming">Herb Run Tracker</h1>
+  </div>
+
+  <!-- Instructions Panel (toggleable) -->
+  <div class="instructions-panel" id="instructionsPanel">
+    <div class="instructions-inner">
+      <div class="instructions-title">
+        <span class="instr-icon">&#128220;</span> How to Use This Tracker
+      </div>
+      <div class="instructions-subtitle">Your companion for efficient herb runs in RuneScape 3</div>
+
+      <div class="instructions-grid">
+        <div class="instr-card">
+          <div class="instr-card-header">
+            <span class="instr-card-num">1</span>
+            <span class="instr-card-title">Set Up Your Run</span>
+          </div>
+          <div class="instr-card-text">Choose your <strong>primary herb</strong> and <strong>yield per patch</strong> from the dropdowns above. Toggle any <strong>teleport unlocks</strong> you have to adjust your route times.</div>
+        </div>
+        <div class="instr-card">
+          <div class="instr-card-header">
+            <span class="instr-card-num">2</span>
+            <span class="instr-card-title">Check Your Loadout</span>
+          </div>
+          <div class="instr-card-text">Use the <strong>Pre-Run Loadout</strong> checklist to make sure you have your seeds, secateurs, juju potion, and teleports ready before starting.</div>
+        </div>
+        <div class="instr-card">
+          <div class="instr-card-header">
+            <span class="instr-card-num">3</span>
+            <span class="instr-card-title">Follow the Route</span>
+          </div>
+          <div class="instr-card-text"><strong>Click each patch card</strong> to check it off as you go. Cards show teleport methods, estimated travel times, and special notes. <strong>Drag cards</strong> to reorder your route.</div>
+        </div>
+        <div class="instr-card">
+          <div class="instr-card-header">
+            <span class="instr-card-num">4</span>
+            <span class="instr-card-title">Track Your Profits</span>
+          </div>
+          <div class="instr-card-text">Watch your <strong>stats update live</strong> as you complete patches. Use <strong>Update Prices</strong> to fetch live Grand Exchange prices. Check the <strong>Profit Breakdown</strong> and <strong>Run History</strong> for totals.</div>
+        </div>
+      </div>
+
+      <div class="instr-tips">
+        <div class="instr-tips-title">Pro Tips</div>
+        <div class="instr-tips-text">
+          Press <strong>?</strong> to see all keyboard shortcuts. Use <strong>1-8</strong> to quickly toggle patches, <strong>Space</strong> to start/pause the timer, and <strong>C</strong> for compact mode during runs. If a patch dies, click the skull icon to mark it. Your progress is <strong>auto-saved</strong> to your browser.
+        </div>
+      </div>
+
+      <button class="instr-dismiss" onclick="toggleInstructions()">Got It &mdash; Close</button>
+    </div>
+  </div>
+
+  <!-- Regrow Countdown Banner (hidden by default, shown after run completion) -->
+  <div class="regrow-banner" id="regrowBanner">
+    <div class="regrow-top">
+      <div class="regrow-left">
+        <span class="regrow-icon" id="regrowIcon">&#127807;</span>
+        <div>
+          <div class="regrow-label" id="regrowLabel">Herbs regrowing</div>
+          <div class="regrow-time" id="regrowTime">--:--</div>
+        </div>
+      </div>
+      <div class="regrow-controls">
+        <label class="regrow-toggle" title="Speedy Growth reduces regrow time from 80 to 60 minutes">
+          <input type="checkbox" id="speedyGrowthToggle">
+          <span class="regrow-toggle-label">Speedy Growth</span>
+        </label>
+        <button class="regrow-dismiss" onclick="dismissRegrow()" title="Dismiss countdown">Dismiss</button>
+      </div>
+    </div>
+    <div class="regrow-progress-bar" id="regrowProgress"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="control-group">
+      <label>Primary Herb</label>
+      <select id="herbSelect">
+        <option value="kwuarm" selected>Kwuarm (Best Profit)</option>
+        <option value="spirit_weed">Spirit Weed</option>
+        <option value="harralander">Harralander</option>
+        <option value="dwarf_weed">Dwarf Weed</option>
+        <option value="lantadyme">Lantadyme</option>
+        <option value="torstol">Torstol</option>
+        <option value="arbuck">Arbuck</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Base Yield Per Patch</label>
+      <select id="yieldSelect">
+        <option value="5">5 (Low level)</option>
+        <option value="6">6 (Mid level)</option>
+        <option value="7" selected>7 (High level)</option>
+        <option value="8">8 (Level 99+)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Plant Power Seeds</label>
+      <select id="plantPowerSelect">
+        <option value="0" selected>None</option>
+        <option value="1">Tier 1 — 2 seeds, +2 yield</option>
+        <option value="2">Tier 2 — 4 seeds, +5 yield</option>
+        <option value="3">Tier 3 — 7 seeds, +9 yield</option>
+        <option value="4">Tier 4 — 10 seeds, +12 yield</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Compost Type</label>
+      <select id="compostSelect">
+        <option value="ultra" selected>Ultracompost (14,160 gp)</option>
+        <option value="super">Supercompost (693 gp)</option>
+        <option value="none">No compost</option>
+      </select>
+      <div class="compost-note" id="compostNote"></div>
+    </div>
+    <div class="control-group">
+      <label>Run Timer</label>
+      <div class="timer-group">
+        <span class="timer-display" id="timerDisplay">0:00</span>
+        <button class="timer-btn" id="timerBtn" onclick="toggleTimer()">Start</button>
+        <button class="timer-btn" onclick="resetTimer()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teleport Unlocks Settings -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-header" onclick="toggleSettings()">
+      <div class="settings-header-left">
+        <span class="settings-title">Teleport Unlocks</span>
+        <span class="settings-summary" id="settingsSummary">0 / 3 unlocked</span>
+      </div>
+      <svg class="settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="settings-body">
+      <div class="settings-grid">
+        <label class="teleport-toggle" id="toggle-trollFarm">
+          <input type="checkbox" data-unlock="trollFarm" onchange="handleTeleportToggle(this)">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Trollheim Farm Tele</div>
+            <div class="teleport-toggle-detail">50s &rarr; 3s</div>
+          </div>
+        </label>
+        <label class="teleport-toggle" id="toggle-sandSeed">
+          <input type="checkbox" data-unlock="sandSeed" onchange="handleTeleportToggle(this)">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Mystical Sand Seed</div>
+            <div class="teleport-toggle-detail">25s &rarr; 3s</div>
+          </div>
+        </label>
+        <label class="teleport-toggle" id="toggle-wildySword">
+          <input type="checkbox" data-unlock="wildySword" onchange="handleTeleportToggle(this)">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Wilderness Sword 1</div>
+            <div class="teleport-toggle-detail">40s &rarr; 3s</div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Farming Unlocks -->
+  <div class="settings-panel open" id="farmingUnlocksPanel">
+    <div class="settings-header" onclick="toggleFarmingUnlocks()">
+      <div class="settings-header-left">
+        <span class="settings-title">Farming Unlocks</span>
+        <span class="settings-summary" id="unlocksSummary">0 active</span>
+      </div>
+      <svg class="settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="settings-body">
+      <div class="effective-yield-display" id="effectiveYieldDisplay">Effective yield: <span id="effectiveYieldValue">7</span> herbs/patch</div>
+      <div class="settings-grid unlock-grid">
+        <label class="teleport-toggle unlock-toggle" id="toggle-secateurs">
+          <input type="checkbox" checked data-unlock="secateurs" onchange="handleUnlockToggle()">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Magic_secateurs.png?94b20" alt="Magic secateurs" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Magic Secateurs</div>
+            <div class="teleport-toggle-detail">+10% harvest chance</div>
+          </div>
+        </label>
+        <label class="teleport-toggle unlock-toggle" id="toggle-juju">
+          <input type="checkbox" checked data-unlock="juju" onchange="handleUnlockToggle()">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Juju_farming_potion_%283%29.png?08bc5" alt="Juju farming potion" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Juju Farming Potion</div>
+            <div class="teleport-toggle-detail">×1.33 yield, costs 1,500 gp</div>
+          </div>
+        </label>
+        <label class="teleport-toggle unlock-toggle greenfingers-toggle" id="toggle-greenfingers">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Legendary_greenfingers_aura.png?26be1" alt="Greenfingers aura" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Greenfingers Aura</div>
+            <select id="greenfingersSelect" class="unlock-select" onchange="handleUnlockToggle()">
+              <option value="0">None</option>
+              <option value="0.03">Tier 1 (+3%)</option>
+              <option value="0.05">Tier 2 (+5%)</option>
+              <option value="0.07">Tier 3 (+7%)</option>
+              <option value="0.10">Tier 4 (+10%)</option>
+              <option value="0.15">Tier 5 — Legendary (+15%)</option>
+            </select>
+          </div>
+        </label>
+        <label class="teleport-toggle unlock-toggle" id="toggle-masterFarmer">
+          <input type="checkbox" data-unlock="masterFarmer" onchange="handleUnlockToggle()">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Master_farmer_hat.png?24433" alt="Master farmer outfit" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Master Farmer Outfit</div>
+            <div class="teleport-toggle-detail">10% harvest life save</div>
+          </div>
+        </label>
+        <label class="teleport-toggle unlock-toggle" id="toggle-farmingCape">
+          <input type="checkbox" data-unlock="farmingCape" onchange="handleUnlockToggle()">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Farming_cape.png?dab36" alt="Farming cape" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Farming Cape</div>
+            <div class="teleport-toggle-detail">5% instant harvest remaining</div>
+          </div>
+        </label>
+        <label class="teleport-toggle unlock-toggle" id="toggle-scrollOfLife">
+          <input type="checkbox" data-unlock="scrollOfLife" onchange="handleUnlockToggle()">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Scroll_of_life.png?5b326" alt="Scroll of life" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Scroll of Life</div>
+            <div class="teleport-toggle-detail">10% seed recovery</div>
+          </div>
+        </label>
+        <label class="teleport-toggle unlock-toggle" id="toggle-pharmEcology">
+          <input type="checkbox" data-unlock="pharmEcology" onchange="handleUnlockToggle()">
+          <img class="unlock-icon" src="https://runescape.wiki/images/Pharm_Ecology.png?5e8ba" alt="Pharm Ecology" onerror="this.style.display='none'">
+          <div class="teleport-toggle-info">
+            <div class="teleport-toggle-name">Pharm Ecology Relic</div>
+            <div class="teleport-toggle-detail">All herbs disease-free</div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- GE Price Fetch -->
+  <div class="ge-fetch-bar" id="geFetchBar">
+    <div class="ge-fetch-left">
+      <span class="ge-fetch-label">GE Prices</span>
+      <span class="ge-fetch-status" id="geFetchStatus">Using hardcoded defaults</span>
+    </div>
+    <button class="ge-fetch-btn" id="geFetchBtn" onclick="fetchGEPrices()">
+      <span class="spinner"></span>
+      <span>Update Prices</span>
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Patches Done</div>
+      <div class="stat-value" id="patchesDone">0 / 8</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Herbs Collected</div>
+      <div class="stat-value" id="herbsCollected">0</div>
+    </div>
+    <div class="stat-card stat-profit">
+      <div class="stat-label">Est. Profit</div>
+      <div class="stat-value profit" id="estProfit">0 gp</div>
+    </div>
+    <div class="stat-card stat-profit">
+      <div class="stat-label">GP / Minute</div>
+      <div class="stat-value profit" id="gpPerMin">&mdash;</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Est. Run Time</div>
+      <div class="stat-value" id="estRunTime">&mdash;</div>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-bar-wrap" id="progressWrap">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-bar-label">
+      <span id="progressText">0 / 8 patches</span>
+      <span class="pbl-pct" id="progressPct">0%</span>
+    </div>
+  </div>
+
+  <!-- Compact Timer Bar (only visible in compact mode) -->
+  <div class="compact-timer-bar" id="compactTimerBar">
+    <span class="timer-display" id="compactTimerDisplay">0:00</span>
+    <button class="timer-btn" id="compactTimerBtn" onclick="toggleTimer()">Start</button>
+    <button class="timer-btn" onclick="resetTimer()">Reset</button>
+  </div>
+
+  <!-- Pre-Run Loadout -->
+  <div class="loadout-section open" id="loadoutSection">
+    <div class="loadout-header" onclick="toggleLoadout()">
+      <div class="loadout-header-left">
+        <span class="loadout-title">Pre-Run Loadout</span>
+        <span class="loadout-progress" id="loadoutProgress">0 / 0 ready</span>
+      </div>
+      <svg class="loadout-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="loadout-body">
+      <div class="loadout-grid" id="loadoutGrid"></div>
+      <div class="loadout-note">
+        <strong>Reminder:</strong> Drink <strong>Juju farming potion</strong> (not Perfect juju), activate <strong>Greenfingers aura</strong>, and equip <strong>Magic secateurs</strong> before teleporting.
+      </div>
+    </div>
+  </div>
+
+  <!-- Route -->
+  <div class="section-header">
+    <span class="section-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 3 2 6 4 8l3 4 3-4c2-2 4-5 4-8 0-4-3-7-7-7z"/><path d="M12 6v6M9 9h6" stroke-width="1.5"/></svg></span> Herb Run Route
+  </div>
+  <div id="patchList"></div>
+
+  <!-- Profit Breakdown -->
+  <div class="section-header">
+    <span class="section-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5c0-1.1 1.3-2 3-2s3 .9 3 2c0 1.5-3 2-3 3.5M9 14.5c0 1.1 1.3 2 3 2s3-.9 3-2" stroke-width="1.5"/></svg></span> Profit Breakdown
+  </div>
+  <div class="profit-table-wrap" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+    <table class="profit-table" id="profitTable"></table>
+  </div>
+
+  <!-- Run History -->
+  <div class="history-section" id="historySection">
+    <div class="history-header" onclick="toggleHistory()">
+      <div class="history-header-left">
+        <span class="section-icon" style="opacity:0.8;"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></span>
+        <span class="history-title">Run History</span>
+        <span class="history-count" id="historyCount">0 runs</span>
+      </div>
+      <svg class="history-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="history-body">
+      <div id="historyContent"></div>
+    </div>
+  </div>
+
+  <div class="reset-bar">
+    <button class="reset-btn" onclick="showResetConfirm()">Reset All Checkmarks</button>
+  </div>
+</div>
+
+<!-- Keyboard Shortcut Overlay -->
+<div class="shortcut-overlay" id="shortcutOverlay" onclick="if(event.target===this)closeShortcuts()">
+  <div class="shortcut-modal">
+    <h2>Keyboard Shortcuts</h2>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>1</kbd>&ndash;<kbd>8</kbd></span><span class="shortcut-desc">Toggle patch checkmark</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>Space</kbd></span><span class="shortcut-desc">Start / pause timer</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Reset all checkmarks</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>C</kbd></span><span class="shortcut-desc">Toggle compact mode</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>P</kbd></span><span class="shortcut-desc">Fetch live GE prices</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>L</kbd></span><span class="shortcut-desc">Toggle light / dark mode</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>?</kbd></span><span class="shortcut-desc">Show / hide this overlay</span></div>
+    <button class="shortcut-close" onclick="closeShortcuts()">Close <kbd style="margin-left:6px;font-family:'JetBrains Mono';font-size:10px;background:var(--bg-surface);border:1px solid var(--border);padding:2px 5px;border-radius:3px;color:var(--gold)">Esc</kbd></button>
+  </div>
+</div>
+
+<!-- Run Complete Toast -->
+<div class="run-complete-toast" id="runCompleteToast">
+  <div class="rct-icon">&#127807;</div>
+  <div class="rct-title">Run Complete!</div>
+  <div class="rct-profit" id="rctProfit">+0 gp</div>
+  <div class="rct-time" id="rctTime">0:00</div>
+</div>
+
+<!-- Reset Confirmation -->
+<div class="reset-confirm-overlay" id="resetConfirmOverlay" onclick="if(event.target===this)closeResetConfirm()">
+  <div class="reset-confirm-modal">
+    <div class="rcm-icon">&#9888;</div>
+    <div class="rcm-title">Reset Run?</div>
+    <div class="rcm-text">This will clear all checkmarks, died patches, and loadout checks. Your run will be saved to history first.</div>
+    <div class="rcm-btns">
+      <button class="rcm-btn" onclick="closeResetConfirm()">Cancel</button>
+      <button class="rcm-btn danger" onclick="confirmResetRun()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instructions toggle -->
+<button class="instructions-toggle-btn" id="instructionsToggle" onclick="toggleInstructions()" title="How to use this tracker">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+</button>
+
+<!-- Theme toggle (light/dark) -->
+<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+  <span id="themeIcon">&#9788;</span>
+</button>
+
+<!-- Compact mode toggle -->
+<button class="compact-toggle" id="compactToggle" onclick="toggleCompact()" title="Toggle compact mode">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+    <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+  </svg>
+</button>
+
+<!-- Sound toggle -->
+<button class="sound-toggle active" id="soundToggle" onclick="toggleSound()" title="Toggle sound effects">
+  <span id="soundIcon">&#x1F50A;</span>
+</button>
+
+<!-- Save indicator toast -->
+<div class="save-indicator" id="saveIndicator">&#10003; Saved</div>
+
+<script>
+// =============================================
+// ALT1 TOOLKIT DETECTION
+// =============================================
+const isAlt1 = (typeof alt1 !== 'undefined') || window.alt1 !== undefined;
+if (isAlt1) {
+  document.body.classList.add('alt1');
+}
+
+// =============================================
+// SOUND EFFECTS (Web Audio API)
+// =============================================
+let audioCtx = null;
+let soundEnabled = localStorage.getItem('herbrun_sound') !== '0'; // on by default
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playHerbPick() {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const t = ctx.currentTime;
+    // Very quiet leafy rustle + soft stem snap
+    const master = ctx.createGain();
+    master.gain.value = 0.035;
+    master.connect(ctx.destination);
+
+    // Filtered noise burst — sounds like leaves/grass brushing
+    const bufSize = ctx.sampleRate * 0.09;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 3000;
+    bp.Q.value = 0.4;
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.6, t + 0.005);
+    nGain.gain.linearRampToValueAtTime(0, t + 0.09);
+    noise.connect(bp);
+    bp.connect(nGain);
+    nGain.connect(master);
+    noise.start(t);
+    noise.stop(t + 0.09);
+
+    // Soft descending tone — the stem releasing from the ground
+    const stem = ctx.createOscillator();
+    const sGain = ctx.createGain();
+    stem.type = 'sine';
+    stem.frequency.setValueAtTime(320, t);
+    stem.frequency.exponentialRampToValueAtTime(160, t + 0.06);
+    sGain.gain.setValueAtTime(0.4, t);
+    sGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    stem.connect(sGain);
+    sGain.connect(master);
+    stem.start(t);
+    stem.stop(t + 0.06);
+  } catch(e) { /* silent fail */ }
+}
+
+function playCoinClink() {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const t = ctx.currentTime;
+    // Quiet two-note chime: C5 → E5
+    const master = ctx.createGain();
+    master.gain.value = 0.045;
+    master.connect(ctx.destination);
+    [523, 659].forEach((freq, i) => {
+      const delay = i * 0.12;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + delay);
+      filter.type = 'lowpass';
+      filter.frequency.value = 1000;
+      gain.gain.setValueAtTime(0.6, t + delay);
+      gain.gain.setValueAtTime(0.6, t + delay + 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.3);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+      osc.start(t + delay);
+      osc.stop(t + delay + 0.3);
+    });
+  } catch(e) { /* silent fail */ }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem('herbrun_sound', soundEnabled ? '1' : '0');
+  const btn = document.getElementById('soundToggle');
+  btn.classList.toggle('active', soundEnabled);
+  btn.querySelector('#soundIcon').textContent = soundEnabled ? '\u{1F50A}' : '\u{1F507}';
+  // Play a quick test sound when enabling
+  if (soundEnabled) playHerbPick();
+}
+
+// =============================================
+// DATA
+// =============================================
+const HERBS = {
+  kwuarm:      { name: 'Kwuarm',      seedCost: 648,    herbPrice: 5013 },
+  spirit_weed: { name: 'Spirit Weed', seedCost: 1681,   herbPrice: 5335 },
+  harralander: { name: 'Harralander', seedCost: 3651,   herbPrice: 5737 },
+  dwarf_weed:  { name: 'Dwarf Weed',  seedCost: 2476,   herbPrice: 4839 },
+  lantadyme:   { name: 'Lantadyme',   seedCost: 864,    herbPrice: 4547 },
+  torstol:     { name: 'Torstol',     seedCost: 2599,   herbPrice: 4599 },
+  arbuck:      { name: 'Arbuck',      seedCost: 32639,  herbPrice: 8004 },
+};
+
+const BLOODWEED = { name: 'Bloodweed', seedCost: 44000, herbPrice: 9200 };
+const JUJU_COST = 1500;
+
+// Compost types: cost, disease chance per growth cycle, yield modifier (harvest lives difference)
+// Herbs have 4 growth cycles of 20 min each
+// Disease chance = probability of disease in ANY of the 4 cycles
+// Yield modifier = difference in harvest lives vs ultra (affects average herbs per patch)
+const COMPOST = {
+  ultra: { name: 'Ultracompost', cost: 14160, diseasePerCycle: 0.07, yieldMod: 0 },
+  super: { name: 'Supercompost', cost: 693,   diseasePerCycle: 0.14, yieldMod: -1 },
+  none:  { name: 'No compost',   cost: 0,     diseasePerCycle: 0.26, yieldMod: -3 },
+};
+const HERB_GROWTH_CYCLES = 4;
+
+// Farming unlock yield multipliers
+const UNLOCK_MULTIPLIERS = {
+  secateurs: 1.10,      // Magic secateurs: +10% harvest chance
+  juju: 1.33,           // Juju farming potion: 33% double herb chance
+  masterFarmer: 1.07,   // Master farmer outfit: 10% harvest life save
+  farmingCape: 1.05,    // Farming cape: 5% instant harvest
+};
+
+// Garden of Kharid — Plant Power Seeds
+// Each tier: { seeds: seeds planted per patch, yieldBonus: extra herbs added to base yield }
+const PLANT_POWER = [
+  { seeds: 1,  yieldBonus: 0 },   // Tier 0 (none)
+  { seeds: 2,  yieldBonus: 2 },   // Tier 1
+  { seeds: 4,  yieldBonus: 5 },   // Tier 2
+  { seeds: 7,  yieldBonus: 9 },   // Tier 3
+  { seeds: 10, yieldBonus: 12 },  // Tier 4
+];
+
+// GE API name mapping (Weird Gloop API uses exact item names)
+const GE_NAMES = {
+  kwuarm:      { seed: 'Kwuarm seed',      herb: 'Grimy kwuarm' },
+  spirit_weed: { seed: 'Spirit weed seed', herb: 'Grimy spirit weed' },
+  harralander: { seed: 'Harralander seed', herb: 'Grimy harralander' },
+  dwarf_weed:  { seed: 'Dwarf weed seed',  herb: 'Grimy dwarf weed' },
+  lantadyme:   { seed: 'Lantadyme seed',   herb: 'Grimy lantadyme' },
+  torstol:     { seed: 'Torstol seed',     herb: 'Grimy torstol' },
+  arbuck:      { seed: 'Arbuck seed',      herb: 'Grimy arbuck' },
+  bloodweed:   { seed: 'Bloodweed seed',   herb: 'Grimy bloodweed' }
+};
+const STORAGE_KEY = 'rs3_herb_tracker';
+const HISTORY_KEY = 'rs3_herb_history';
+const MAX_HISTORY = 50;
+
+// Hardcoded wiki inventory icon URLs (scraped from runescape.wiki)
+const WIKI_ICONS = {
+  supercompost: 'https://runescape.wiki/images/Supercompost.png?3ad1d',
+  ultracompost: 'https://runescape.wiki/images/Ultracompost.png?c140f',
+  juju_farming_3: 'https://runescape.wiki/images/Juju_farming_potion_%283%29.png?08bc5',
+  magic_secateurs: 'https://runescape.wiki/images/Magic_secateurs.png?94b20',
+  ectophial: 'https://runescape.wiki/images/Ectophial.png?f7390',
+  explorer_ring_4: 'https://runescape.wiki/images/Explorer%27s_ring_4.png?d3f50',
+  ardougne_cloak_4: 'https://runescape.wiki/images/Ardougne_cloak_4.png?ab219',
+  crystal_seed: 'https://runescape.wiki/images/Attuned_crystal_teleport_seed.png?52678',
+  trollheim_tele: 'https://runescape.wiki/images/thumb/Trollheim_Teleport_icon.png/32px-Trollheim_Teleport_icon.png?68555',
+  sand_seed: 'https://runescape.wiki/images/Mystical_sand_seed.png?2d171',
+  wildy_sword_1: 'https://runescape.wiki/images/Wilderness_sword_1.png?3604f',
+  kwuarm_seed: 'https://runescape.wiki/images/Kwuarm_seed_1.png?5acd7',
+  spirit_weed_seed: 'https://runescape.wiki/images/Spirit_weed_seed_1.png?aca17',
+  harralander_seed: 'https://runescape.wiki/images/Harralander_seed_1.png?f4955',
+  dwarf_weed_seed: 'https://runescape.wiki/images/Dwarf_weed_seed_1.png?70bd7',
+  lantadyme_seed: 'https://runescape.wiki/images/Lantadyme_seed_1.png?2a00c',
+  torstol_seed: 'https://runescape.wiki/images/Torstol_seed_1.png?a3572',
+  arbuck_seed: 'https://runescape.wiki/images/Arbuck_seed_1.png?67da9',
+  bloodweed_seed: 'https://runescape.wiki/images/Bloodweed_seed_1.png?6737d',
+  greenfingers_aura: 'https://runescape.wiki/images/Legendary_greenfingers_aura.png?26be1',
+  master_farmer_hat: 'https://runescape.wiki/images/Master_farmer_hat.png?24433',
+  farming_cape: 'https://runescape.wiki/images/Farming_cape.png?dab36',
+  scroll_of_life: 'https://runescape.wiki/images/Scroll_of_life.png?5b326',
+  pharm_ecology: 'https://runescape.wiki/images/Pharm_Ecology.png?5e8ba',
+};
+
+// Map herb select keys to their seed icon keys
+const SEED_ICON_MAP = {
+  kwuarm: 'kwuarm_seed',
+  spirit_weed: 'spirit_weed_seed',
+  harralander: 'harralander_seed',
+  dwarf_weed: 'dwarf_weed_seed',
+  lantadyme: 'lantadyme_seed',
+  torstol: 'torstol_seed',
+  arbuck: 'arbuck_seed',
+};
+
+// Loadout items — dynamic ones are rebuilt on herb/unlock change
+const LOADOUT_STATIC = [
+  { id: 'secateurs', name: 'Magic secateurs', qty: 'Equipped', icon: WIKI_ICONS.magic_secateurs },
+  { id: 'ectophial', name: 'Ectophial', qty: '1', icon: WIKI_ICONS.ectophial },
+  { id: 'explorer_ring', name: "Explorer's ring", qty: '1', icon: WIKI_ICONS.explorer_ring_4 },
+  { id: 'ardy_cloak', name: 'Ardougne cloak', qty: '1', icon: WIKI_ICONS.ardougne_cloak_4 },
+  { id: 'crystal_seed', name: 'Attuned crystal teleport seed', qty: '1', icon: WIKI_ICONS.crystal_seed },
+];
+
+function buildLoadoutItems() {
+  const herbKey = document.getElementById('herbSelect').value;
+  const herb = HERBS[herbKey];
+  const active = getActivePatches();
+  const stdCount = active.filter(p => !p.wilderness).length;
+  const hasWildy = active.some(p => p.wilderness);
+
+  const items = [];
+
+  // Herb seeds (dynamic icon based on selected herb)
+  const seedIconKey = SEED_ICON_MAP[herbKey] || 'kwuarm_seed';
+  items.push({ id: 'herb_seed', name: herb.name + ' seed', qty: String(stdCount), icon: WIKI_ICONS[seedIconKey] });
+
+  // Bloodweed seed if wilderness active
+  if (hasWildy) {
+    items.push({ id: 'blood_seed', name: 'Bloodweed seed', qty: '1', icon: WIKI_ICONS.bloodweed_seed });
+  }
+
+  // Compost (dynamic based on selector)
+  const compostType = document.getElementById('compostSelect').value;
+  if (compostType === 'ultra') {
+    items.push({ id: 'compost', name: 'Ultracompost', qty: String(active.length), icon: WIKI_ICONS.ultracompost });
+  } else if (compostType === 'super') {
+    items.push({ id: 'compost', name: 'Supercompost', qty: String(active.length), icon: WIKI_ICONS.supercompost });
+  }
+
+  // Static items
+  items.push(...LOADOUT_STATIC);
+
+  // Juju potion (conditional on unlock toggle)
+  if (farmingUnlocks.juju) {
+    items.push({ id: 'juju', name: 'Juju farming potion', qty: '1 dose', icon: WIKI_ICONS.juju_farming_3 });
+  }
+
+  // Conditional teleport items based on unlocks
+  if (!teleportUnlocks.trollFarm) {
+    items.push({ id: 'troll_tab', name: 'Trollheim teleport', qty: '1 tablet/runes', icon: WIKI_ICONS.trollheim_tele });
+  }
+  if (teleportUnlocks.sandSeed) {
+    items.push({ id: 'sand_seed', name: 'Mystical sand seed', qty: '1', icon: WIKI_ICONS.sand_seed });
+  }
+  if (teleportUnlocks.wildySword && hasWildy) {
+    items.push({ id: 'wildy_sword', name: 'Wilderness sword 1', qty: 'Equipped/Inv', icon: WIKI_ICONS.wildy_sword_1 });
+  }
+
+  return items;
+}
+const REGROW_NORMAL = 80 * 60 * 1000;  // 80 min in ms
+const REGROW_SPEEDY = 60 * 60 * 1000;  // 60 min in ms
+
+const PATCHES = [
+  { id: 'prif', step: 1, name: 'Prifddinas', region: 'Crwys District',
+    teleport: 'Attuned Crystal Seed \u2192 Crwys', timeSlow: 5, timeFast: 5, unlockKey: null,
+    directions: 'Teleport drops you in Crwys. Herb patch is a few steps south. Bank chest 13 steps east for restocking.',
+    tags: [{ text: 'Bank nearby', cls: 'bank' }], wilderness: false, diseaseFree: false },
+  { id: 'ardy', step: 2, name: 'Ardougne', region: 'Manor Farm',
+    teleport: 'Ardougne Cloak \u2192 Farm Teleport', timeSlow: 3, timeFast: 3, unlockKey: null,
+    directions: 'Lands directly at Manor Farm. Herb patch is immediate \u2014 fastest patch in the game.',
+    tags: [], wilderness: false, diseaseFree: false },
+  { id: 'cath', step: 3, name: 'Catherby', region: 'North of village',
+    teleport: 'Catherby Lodestone', timeSlow: 12, timeFast: 12, unlockKey: null,
+    directions: 'Run north from lodestone past the bank. Allotment area with herb patch on the west side.',
+    tags: [{ text: 'Bank nearby', cls: 'bank' }], wilderness: false, diseaseFree: false },
+  { id: 'fala', step: 4, name: 'Falador', region: 'South farming area',
+    teleport: "Explorer's Ring \u2192 Cabbage-port", timeSlow: 4, timeFast: 4, unlockKey: null,
+    directions: 'Lands at cabbage patch south of Falador. Run a few steps north to the herb patch.',
+    tags: [], wilderness: false, diseaseFree: false },
+  { id: 'mort', step: 5, name: 'Morytania', region: 'Port Phasmatys',
+    teleport: 'Ectophial', timeSlow: 12, timeFast: 12, unlockKey: null,
+    directions: 'Teleport to Port Phasmatys ectofuntus. Run west to the allotment area. Herb patch on the south side.',
+    tags: [{ text: 'Ghosts Ahoy', cls: 'quest' }], wilderness: false, diseaseFree: false },
+  { id: 'troll', step: 6, name: 'Trollheim', region: 'Disease-free patch',
+    teleport: 'Trollheim Teleport', teleportFast: 'Trollheim Farm Teleport',
+    timeSlow: 50, timeFast: 3, unlockKey: 'trollFarm',
+    directions: "Standard teleport: navigate through Troll Stronghold down to My Arm's patch. Farm Teleport: lands directly at patch.",
+    tags: [{ text: 'Disease-free', cls: 'disease-free' }, { text: "My Arm's Big Adventure", cls: 'quest' }],
+    wilderness: false, diseaseFree: true },
+  { id: 'kharid', step: 7, name: 'Garden of Kharid', region: 'Al Kharid',
+    teleport: 'Al Kharid Lodestone', teleportFast: 'Mystical Sand Seed',
+    timeSlow: 25, timeFast: 3, unlockKey: 'sandSeed',
+    directions: 'Sand Seed teleports directly to the garden. Without it, lodestone to Al Kharid and run north. Requires 50 Farming.',
+    tags: [], wilderness: false, diseaseFree: false },
+  { id: 'wildy', step: 8, name: 'Wilderness', region: 'Bloodweed only',
+    teleport: 'Crater Lodestone', teleportFast: 'Wilderness Sword 1',
+    timeSlow: 40, timeFast: 3, unlockKey: 'wildySword',
+    directions: 'Bank all valuables first. Sword teleports directly to patch. PvP is opt-in since Aug 2022 \u2014 safe by default. Level 38 Wilderness.',
+    tags: [{ text: 'Bloodweed', cls: 'wilderness-tag' }, { text: 'PvP opt-in', cls: 'disease-free' }],
+    wilderness: true, diseaseFree: false }
+];
+
+// =============================================
+// STATE
+// =============================================
+let checked = {};
+let died = {};
+let disabled = {};
+let patchOrder = PATCHES.map(p => p.id);
+let teleportUnlocks = { trollFarm: false, sandSeed: false, wildySword: false };
+let timerInterval = null;
+let timerSeconds = 0;
+let timerRunning = false;
+let regrowTargetTime = null;
+let regrowInterval = null;
+let speedyGrowth = false;
+let compactMode = false;
+let lightMode = false;
+let loadoutChecked = {};
+let saveTimeout = null;
+
+// =============================================
+// LOCALSTORAGE PERSISTENCE
+// =============================================
+function saveState() {
+  // Debounce saves to avoid hammering localStorage on rapid clicks
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    try {
+      const state = {
+        herbSelect: document.getElementById('herbSelect').value,
+        yieldSelect: document.getElementById('yieldSelect').value,
+        plantPower: document.getElementById('plantPowerSelect').value,
+        compostType: document.getElementById('compostSelect').value,
+        checked: checked,
+        died: died,
+        disabled: disabled,
+        patchOrder: patchOrder,
+        teleportUnlocks: teleportUnlocks,
+        farmingUnlocks: farmingUnlocks,
+        speedyGrowth: speedyGrowth,
+        compactMode: compactMode,
+        lightMode: lightMode,
+        loadoutChecked: loadoutChecked,
+        regrowTargetTime: regrowTargetTime,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      showSaveToast();
+    } catch (e) { /* localStorage unavailable */ }
+  }, 150);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+
+    if (state.herbSelect) document.getElementById('herbSelect').value = state.herbSelect;
+    if (state.yieldSelect) document.getElementById('yieldSelect').value = state.yieldSelect;
+    if (state.plantPower) document.getElementById('plantPowerSelect').value = state.plantPower;
+    if (state.compostType) document.getElementById('compostSelect').value = state.compostType;
+    if (state.checked && typeof state.checked === 'object') checked = state.checked;
+    if (state.died && typeof state.died === 'object') died = state.died;
+    if (state.disabled && typeof state.disabled === 'object') disabled = state.disabled;
+    if (Array.isArray(state.patchOrder) && state.patchOrder.length === PATCHES.length) {
+      // Validate all IDs exist
+      const validIds = new Set(PATCHES.map(p => p.id));
+      if (state.patchOrder.every(id => validIds.has(id))) {
+        patchOrder = state.patchOrder;
+      }
+    }
+    if (state.teleportUnlocks && typeof state.teleportUnlocks === 'object') {
+      teleportUnlocks = { ...teleportUnlocks, ...state.teleportUnlocks };
+      // Restore toggle UI
+      Object.keys(teleportUnlocks).forEach(key => {
+        const el = document.querySelector(`[data-unlock="${key}"]`);
+        if (el) {
+          el.checked = teleportUnlocks[key];
+          el.closest('.teleport-toggle').classList.toggle('active', teleportUnlocks[key]);
+        }
+      });
+      updateSettingsSummary();
+    }
+    if (state.farmingUnlocks && typeof state.farmingUnlocks === 'object') {
+      farmingUnlocks = { ...farmingUnlocks, ...state.farmingUnlocks };
+      restoreUnlockToggles();
+    }
+    if (typeof state.speedyGrowth === 'boolean') {
+      speedyGrowth = state.speedyGrowth;
+      document.getElementById('speedyGrowthToggle').checked = speedyGrowth;
+    }
+    if (state.compactMode) {
+      compactMode = true;
+      document.body.classList.add('compact');
+      document.getElementById('compactToggle').classList.add('active');
+    }
+    if (state.lightMode) {
+      lightMode = true;
+      document.body.classList.add('light');
+      document.getElementById('themeIcon').textContent = '\u263D';
+    }
+    if (state.loadoutChecked && typeof state.loadoutChecked === 'object') {
+      loadoutChecked = state.loadoutChecked;
+    }
+
+    // Restore regrow timer
+    if (state.regrowTargetTime) {
+      regrowTargetTime = state.regrowTargetTime;
+      if (regrowTargetTime > Date.now()) {
+        startRegrowDisplay();
+      } else {
+        showRegrowReady();
+      }
+    }
+  } catch (e) { /* corrupted data, start fresh */ }
+
+  // Alt1: auto-enable compact mode on first load if no saved preference
+  if (isAlt1 && !localStorage.getItem(STORAGE_KEY)) {
+    compactMode = true;
+    document.body.classList.add('compact');
+    document.getElementById('compactToggle').classList.add('active');
+  }
+}
+
+let toastTimeout = null;
+function showSaveToast() {
+  const el = document.getElementById('saveIndicator');
+  el.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => el.classList.remove('show'), 1200);
+}
+
+// =============================================
+// REGROW COUNTDOWN
+// =============================================
+function getRegrowDuration() {
+  return speedyGrowth ? REGROW_SPEEDY : REGROW_NORMAL;
+}
+
+function startRegrowCountdown() {
+  regrowTargetTime = Date.now() + getRegrowDuration();
+  requestNotificationPermission();
+  startRegrowDisplay();
+  saveState();
+}
+
+function startRegrowDisplay() {
+  const banner = document.getElementById('regrowBanner');
+  banner.classList.add('active');
+  banner.classList.remove('ready');
+  document.getElementById('regrowIcon').innerHTML = '&#127807;';
+  document.getElementById('regrowLabel').textContent = 'Herbs regrowing';
+  if (regrowInterval) clearInterval(regrowInterval);
+  regrowInterval = setInterval(updateRegrowDisplay, 1000);
+  updateRegrowDisplay();
+}
+
+function updateRegrowDisplay() {
+  if (!regrowTargetTime) return;
+  const remaining = regrowTargetTime - Date.now();
+
+  if (remaining <= 0) {
+    clearInterval(regrowInterval);
+    regrowInterval = null;
+    showRegrowReady();
+    sendNotification();
+    return;
+  }
+
+  const totalSec = Math.ceil(remaining / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  document.getElementById('regrowTime').textContent =
+    `${min}:${sec.toString().padStart(2, '0')}`;
+
+  // Progress bar
+  const duration = getRegrowDuration();
+  const elapsed = duration - remaining;
+  const pct = Math.min(100, Math.max(0, (elapsed / duration) * 100));
+  document.getElementById('regrowProgress').style.width = pct + '%';
+}
+
+function showRegrowReady() {
+  const banner = document.getElementById('regrowBanner');
+  banner.classList.add('active', 'ready');
+  document.getElementById('regrowIcon').innerHTML = '&#9989;';
+  document.getElementById('regrowLabel').textContent = 'Herbs ready!';
+  document.getElementById('regrowTime').textContent = 'GO';
+  document.getElementById('regrowProgress').style.width = '100%';
+}
+
+function dismissRegrow() {
+  const banner = document.getElementById('regrowBanner');
+  banner.classList.remove('active', 'ready');
+  if (regrowInterval) { clearInterval(regrowInterval); regrowInterval = null; }
+  regrowTargetTime = null;
+  saveState();
+}
+
+// Speedy Growth toggle - recalculate remaining time proportionally
+document.getElementById('speedyGrowthToggle').addEventListener('change', function() {
+  const wasSpeedy = speedyGrowth;
+  speedyGrowth = this.checked;
+
+  if (regrowTargetTime && regrowTargetTime > Date.now()) {
+    const oldDuration = wasSpeedy ? REGROW_SPEEDY : REGROW_NORMAL;
+    const newDuration = speedyGrowth ? REGROW_SPEEDY : REGROW_NORMAL;
+    const remaining = regrowTargetTime - Date.now();
+    const fraction = remaining / oldDuration;
+    regrowTargetTime = Date.now() + Math.round(newDuration * fraction);
+    updateRegrowDisplay();
+  }
+
+  saveState();
+});
+
+// Browser notifications (with Alt1 overlay fallback)
+function requestNotificationPermission() {
+  // Alt1's embedded browser doesn't support Notification API — skip the prompt
+  if (isAlt1) return;
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function sendNotification() {
+  // In Alt1, use the overlay text API if available
+  if (isAlt1) {
+    try {
+      if (window.alt1 && typeof alt1.overLayTextEx === 'function') {
+        alt1.overLayTextEx('Herbs ready! Time for a run.', 0x00FF00, 20, 10, 30, 4000, '', true);
+      }
+    } catch (e) { /* Alt1 overlay failed */ }
+    return;
+  }
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('RS3 Herb Run Tracker', {
+        body: 'Your herbs are ready to harvest! Time for another run.',
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">&#127807;</text></svg>'
+      });
+    } catch (e) { /* notification failed */ }
+  }
+}
+
+// =============================================
+// RENDER PATCHES
+// =============================================
+function getOrderedPatches() {
+  return patchOrder.map(id => PATCHES.find(p => p.id === id)).filter(Boolean);
+}
+
+function getActivePatches() {
+  return getOrderedPatches().filter(p => !disabled[p.id]);
+}
+
+function renderPatches() {
+  const ordered = getOrderedPatches();
+  let stepNum = 0;
+  const container = document.getElementById('patchList');
+  container.innerHTML = ordered.map(p => {
+    const isDisabled = disabled[p.id];
+    if (!isDisabled) stepNum++;
+
+    const classes = ['patch-card'];
+    if (isDisabled) classes.push('disabled');
+    else if (died[p.id]) classes.push('died');
+    else if (checked[p.id]) classes.push('checked');
+    if (p.wilderness) classes.push('wilderness');
+    else if (p.diseaseFree) classes.push('disease-free');
+
+    const hasUnlock = p.unlockKey && teleportUnlocks[p.unlockKey];
+    const travelSec = hasUnlock ? p.timeFast : p.timeSlow;
+    const teleportName = hasUnlock && p.teleportFast ? p.teleportFast : p.teleport;
+    const stepLabel = isDisabled ? '\u2014' : stepNum;
+
+    return `
+      <div class="${classes.join(' ')}" id="card-${p.id}" draggable="true"
+           ondragstart="onDragStart(event, '${p.id}')"
+           ondragover="onDragOver(event, '${p.id}')"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event, '${p.id}')"
+           ondragend="onDragEnd(event)">
+        <div class="drag-handle" title="Drag to reorder">
+          <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+            <circle cx="3" cy="2" r="1.5"/><circle cx="7" cy="2" r="1.5"/>
+            <circle cx="3" cy="8" r="1.5"/><circle cx="7" cy="8" r="1.5"/>
+            <circle cx="3" cy="14" r="1.5"/><circle cx="7" cy="14" r="1.5"/>
+          </svg>
+        </div>
+        <button class="disable-btn" onclick="event.stopPropagation(); toggleDisable('${p.id}')"
+                title="${isDisabled ? 'Enable patch' : 'Skip this patch'}">
+          ${isDisabled ? '&#10003;' : '&#10005;'}
+        </button>
+        <div class="patch-main" role="button" tabindex="0" aria-label="${p.name} patch" onclick="toggleCheck('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleCheck('${p.id}')}">
+          <div class="check-box">
+            <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+            <span class="died-icon">&#9760;</span>
+          </div>
+          <div class="patch-info">
+            <div class="patch-top-row">
+              <span class="patch-step">${stepLabel}</span>
+              <span class="patch-name">${p.name}</span>
+              <div class="patch-tags">
+                ${p.tags.map(t => `<span class="tag ${t.cls}">${t.text}</span>`).join('')}
+              </div>
+            </div>
+            <div class="patch-teleport"><strong>${teleportName}</strong> &mdash; ${p.region}</div>
+          </div>
+          <div class="patch-time">
+            <span class="time-value">${travelSec}s</span>
+            travel
+          </div>
+        </div>
+        <div class="patch-details">
+          <div class="patch-details-inner">${p.directions}</div>
+        </div>
+        <button class="died-btn" onclick="event.stopPropagation(); toggleDied('${p.id}')" title="Mark patch as died">
+          <span>&#9760;</span><span class="died-label">Died</span>
+        </button>
+        <button class="expand-toggle" onclick="event.stopPropagation(); toggleExpand('${p.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function toggleCheck(id) {
+  // If patch is currently died, clicking clears the died state (back to unchecked)
+  if (died[id]) {
+    died[id] = false;
+    const card = document.getElementById('card-' + id);
+    card.classList.remove('died');
+    updateStats();
+    saveState();
+    return;
+  }
+
+  checked[id] = !checked[id];
+  if (checked[id]) playHerbPick();
+  const card = document.getElementById('card-' + id);
+  card.classList.toggle('checked', checked[id]);
+
+  // Auto-start run timer on first check
+  const anyActive = Object.values(checked).filter(Boolean).length + Object.values(died).filter(Boolean).length;
+  if (checked[id] && !timerRunning && anyActive === 1) {
+    toggleTimer();
+  }
+
+  // Auto-trigger regrow countdown when all active patches are done (checked or died)
+  const active = getActivePatches();
+  const doneCount = active.filter(p => checked[p.id] || died[p.id]).length;
+  if (active.length > 0 && doneCount === active.length && !regrowTargetTime) {
+    startRegrowCountdown();
+  }
+
+  updateStats();
+  saveState();
+}
+
+function toggleDied(id) {
+  if (died[id]) {
+    // Un-die: clear died, leave unchecked
+    died[id] = false;
+    checked[id] = false;
+  } else {
+    // Mark as died: set died, clear checked
+    died[id] = true;
+    checked[id] = false;
+  }
+
+  // Auto-start run timer on first interaction
+  const anyActive = Object.values(checked).filter(Boolean).length + Object.values(died).filter(Boolean).length;
+  if (died[id] && !timerRunning && anyActive === 1) {
+    toggleTimer();
+  }
+
+  renderPatches();
+
+  // Auto-trigger regrow countdown when all active patches are done
+  const active = getActivePatches();
+  const doneCount = active.filter(p => checked[p.id] || died[p.id]).length;
+  if (active.length > 0 && doneCount === active.length && !regrowTargetTime) {
+    startRegrowCountdown();
+  }
+
+  updateStats();
+  saveState();
+}
+
+function toggleExpand(id) {
+  document.getElementById('card-' + id).classList.toggle('expanded');
+}
+
+function toggleDisable(id) {
+  disabled[id] = !disabled[id];
+  // If disabling, clear checked/died state
+  if (disabled[id]) {
+    checked[id] = false;
+    died[id] = false;
+  }
+  renderPatches();
+  updateStats();
+  saveState();
+}
+
+// =============================================
+// DRAG AND DROP REORDER
+// =============================================
+let draggedId = null;
+
+function onDragStart(e, id) {
+  draggedId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', id);
+  // Delay adding class so the drag image captures the original look
+  requestAnimationFrame(() => {
+    const card = document.getElementById('card-' + id);
+    if (card) card.classList.add('dragging');
+  });
+}
+
+function onDragOver(e, targetId) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (targetId === draggedId) return;
+  // Add visual indicator
+  const card = document.getElementById('card-' + targetId);
+  if (card && !card.classList.contains('drag-over')) {
+    // Clear all other drag-over states first
+    document.querySelectorAll('.patch-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+    card.classList.add('drag-over');
+  }
+}
+
+function onDragLeave(e) {
+  const card = e.currentTarget;
+  if (card) card.classList.remove('drag-over');
+}
+
+function onDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.patch-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+  if (!draggedId || draggedId === targetId) return;
+
+  const fromIdx = patchOrder.indexOf(draggedId);
+  const toIdx = patchOrder.indexOf(targetId);
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  // Remove from old position and insert at new
+  patchOrder.splice(fromIdx, 1);
+  patchOrder.splice(toIdx, 0, draggedId);
+
+  renderPatches();
+  updateStats();
+  saveState();
+}
+
+function onDragEnd(e) {
+  document.querySelectorAll('.patch-card.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.patch-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+  draggedId = null;
+}
+
+// =============================================
+// TELEPORT UNLOCK TOGGLES
+// =============================================
+function handleTeleportToggle(el) {
+  const key = el.dataset.unlock;
+  teleportUnlocks[key] = el.checked;
+  el.closest('.teleport-toggle').classList.toggle('active', el.checked);
+  updateSettingsSummary();
+  renderPatches();
+  updateStats();
+  saveState();
+}
+
+function toggleSettings() {
+  document.getElementById('settingsPanel').classList.toggle('open');
+}
+
+function updateSettingsSummary() {
+  const count = Object.values(teleportUnlocks).filter(Boolean).length;
+  const total = Object.keys(teleportUnlocks).length;
+  document.getElementById('settingsSummary').textContent = `${count} / ${total} unlocked`;
+}
+
+// =============================================
+// STATS & PROFIT
+// =============================================
+function updateStats() {
+  const herb = HERBS[document.getElementById('herbSelect').value];
+  const pp = PLANT_POWER[parseInt(document.getElementById('plantPowerSelect').value)];
+  const compost = COMPOST[document.getElementById('compostSelect').value];
+  const effectiveYield = getEffectiveYield();
+  const diseaseOverride = farmingUnlocks.pharmEcology;
+  const active = getActivePatches();
+  const activeCount = active.length;
+
+  // Count patches by state (only active)
+  let doneCount = 0;
+  let herbsFromStandard = 0;
+  let herbsFromWildy = 0;
+  let costStandard = 0;
+  let costWildy = 0;
+
+  active.forEach(p => {
+    const isChecked = checked[p.id];
+    const isDied = died[p.id];
+    if (!isChecked && !isDied) return;
+    doneCount++;
+
+    if (p.wilderness) {
+      const seedCostW = BLOODWEED.seedCost * pp.seeds * (farmingUnlocks.scrollOfLife ? 0.9 : 1);
+      costWildy += seedCostW + compost.cost;
+      if (isChecked && !isDied) {
+        herbsFromWildy += effectiveYield;
+      }
+    } else {
+      const seedCostS = herb.seedCost * pp.seeds * (farmingUnlocks.scrollOfLife ? 0.9 : 1);
+      costStandard += seedCostS + compost.cost;
+      if (isChecked && !isDied) {
+        herbsFromStandard += effectiveYield;
+      }
+    }
+  });
+
+  const totalHerbs = herbsFromStandard + herbsFromWildy;
+  const revenue = (herbsFromStandard * herb.herbPrice) + (herbsFromWildy * BLOODWEED.herbPrice);
+  const jujuCost = (farmingUnlocks.juju && doneCount > 0) ? JUJU_COST : 0;
+  const totalProfit = revenue - costStandard - costWildy - jujuCost;
+
+  document.getElementById('patchesDone').textContent = `${doneCount} / ${activeCount}`;
+  document.getElementById('herbsCollected').textContent = totalHerbs.toLocaleString();
+  document.getElementById('estProfit').textContent = totalProfit > 0
+    ? `+${totalProfit.toLocaleString()} gp`
+    : `${totalProfit.toLocaleString()} gp`;
+
+  if (timerSeconds > 0 && doneCount > 0) {
+    const gpMin = Math.round(totalProfit / (timerSeconds / 60));
+    document.getElementById('gpPerMin').textContent = gpMin > 0 ? `${gpMin.toLocaleString()}` : '\u2014';
+  }
+
+  // Estimated run time based on teleport unlocks (active patches only)
+  const PATCH_INTERACTION = 18;
+  let totalTravelSec = 0;
+  active.forEach(p => {
+    const hasUnlock = p.unlockKey && teleportUnlocks[p.unlockKey];
+    totalTravelSec += hasUnlock ? p.timeFast : p.timeSlow;
+  });
+  const totalRunSec = totalTravelSec + (activeCount * PATCH_INTERACTION);
+  const runMin = Math.floor(totalRunSec / 60);
+  const runSec = totalRunSec % 60;
+  document.getElementById('estRunTime').textContent = `${runMin}:${runSec.toString().padStart(2, '0')}`;
+
+  renderProfitTable();
+  updateProgressBar();
+  renderLoadout();
+}
+
+function renderProfitTable() {
+  const herb = HERBS[document.getElementById('herbSelect').value];
+  const pp = PLANT_POWER[parseInt(document.getElementById('plantPowerSelect').value)];
+  const compost = COMPOST[document.getElementById('compostSelect').value];
+  const totalY = getEffectiveYield();
+  const diseaseOverride = farmingUnlocks.pharmEcology;
+  const scrollSave = farmingUnlocks.scrollOfLife ? 0.9 : 1;
+  const active = getActivePatches();
+  const stdPatches = active.filter(p => !p.wilderness).length;
+  const hasWildy = active.some(p => p.wilderness);
+
+  // Disease: chance of losing a patch over 4 growth cycles
+  // Some patches are immune: Trollheim (never diseased), Wilderness (immune w/ hard achievements)
+  const diseaseChance = diseaseOverride ? 0 : 1 - Math.pow(1 - compost.diseasePerCycle, HERB_GROWTH_CYCLES);
+  const immunePatches = active.filter(p => p.id === 'trollheim' || p.wilderness).length;
+  const vulnerablePatches = active.length - immunePatches;
+  const expectedDeaths = vulnerablePatches * diseaseChance;
+  const survivalRate = vulnerablePatches > 0 ? (vulnerablePatches - expectedDeaths) / vulnerablePatches : 1;
+
+  // Revenue accounts for expected disease losses on vulnerable patches
+  const immuneStd = active.filter(p => !p.wilderness && (p.id === 'trollheim')).length;
+  const vulnerableStd = stdPatches - immuneStd;
+  const effectiveStdPatches = immuneStd + (vulnerableStd * (1 - diseaseChance));
+  const effectiveWildy = hasWildy ? 1 : 0; // wildy immune w/ hard achievements
+
+  const stdRevenue = Math.round(effectiveStdPatches * totalY * herb.herbPrice);
+  const stdSeedCost = Math.round(stdPatches * herb.seedCost * pp.seeds * scrollSave);
+  const stdCompostCost = stdPatches * compost.cost;
+
+  const wRevenue = effectiveWildy > 0 ? Math.round(totalY * BLOODWEED.herbPrice) : 0;
+  const wSeedCost = hasWildy ? Math.round(BLOODWEED.seedCost * pp.seeds * scrollSave) : 0;
+  const wCompostCost = hasWildy ? compost.cost : 0;
+  const totalCompostCost = (stdPatches + (hasWildy ? 1 : 0)) * compost.cost;
+
+  const jujuCost = farmingUnlocks.juju ? JUJU_COST : 0;
+  const totalProfit = (stdRevenue - stdSeedCost - stdCompostCost) + (wRevenue - wSeedCost - wCompostCost) - jujuCost;
+
+  const seedLabel = pp.seeds > 1 ? ` (${pp.seeds} each)` : '';
+  const diseasePercent = Math.round(diseaseChance * 100);
+
+  let rows = `
+    <tr>
+      <td class="herb-name">${herb.name} &times; ${stdPatches} patches</td>
+      <td>~${Math.round(effectiveStdPatches * totalY)} herbs @ ${herb.herbPrice.toLocaleString()} gp</td>
+      <td class="gp positive">+${stdRevenue.toLocaleString()}</td>
+    </tr>`;
+
+  if (hasWildy) {
+    rows += `
+    <tr>
+      <td class="herb-name">Bloodweed &times; 1 patch</td>
+      <td>${totalY} herbs @ ${BLOODWEED.herbPrice.toLocaleString()} gp</td>
+      <td class="gp positive">+${wRevenue.toLocaleString()}</td>
+    </tr>`;
+  }
+
+  rows += `
+    <tr>
+      <td style="color:var(--text-dim)">${herb.name} seeds${seedLabel} &times; ${stdPatches}</td>
+      <td>${stdPatches * pp.seeds} @ ${herb.seedCost.toLocaleString()} gp</td>
+      <td class="gp negative">-${stdSeedCost.toLocaleString()}</td>
+    </tr>`;
+
+  if (hasWildy) {
+    rows += `
+    <tr>
+      <td style="color:var(--text-dim)">Bloodweed seed${pp.seeds > 1 ? ' &times; ' + pp.seeds : ''}</td>
+      <td>${pp.seeds > 1 ? pp.seeds + ' @ ' + BLOODWEED.seedCost.toLocaleString() + ' gp' : ''}</td>
+      <td class="gp negative">-${wSeedCost.toLocaleString()}</td>
+    </tr>`;
+  }
+
+  if (compost.cost > 0) {
+    rows += `
+    <tr>
+      <td style="color:var(--text-dim)">${compost.name} &times; ${stdPatches + (hasWildy ? 1 : 0)}</td>
+      <td>${(stdPatches + (hasWildy ? 1 : 0))} @ ${compost.cost.toLocaleString()} gp</td>
+      <td class="gp negative">-${totalCompostCost.toLocaleString()}</td>
+    </tr>`;
+  }
+
+  if (farmingUnlocks.juju) {
+    rows += `
+    <tr>
+      <td style="color:var(--text-dim)">Juju farming potion dose</td>
+      <td></td>
+      <td class="gp negative">-${JUJU_COST.toLocaleString()}</td>
+    </tr>`;
+  }
+
+  if (farmingUnlocks.scrollOfLife) {
+    const seedSavings = Math.round((stdPatches * herb.seedCost * pp.seeds + (hasWildy ? BLOODWEED.seedCost * pp.seeds : 0)) * 0.1);
+    rows += `
+    <tr>
+      <td style="color:var(--green-bright)">Scroll of Life (10% seed recovery)</td>
+      <td></td>
+      <td class="gp positive">+${seedSavings.toLocaleString()}</td>
+    </tr>`;
+  }
+
+  if (diseasePercent > 0 && vulnerablePatches > 0) {
+    rows += `
+    <tr>
+      <td style="color:#b87a3a">Disease risk (${diseasePercent}% per patch)</td>
+      <td>${vulnerablePatches} vulnerable, ~${expectedDeaths.toFixed(1)} expected deaths</td>
+      <td style="color:#b87a3a">-${Math.round(expectedDeaths * totalY * herb.herbPrice).toLocaleString()}</td>
+    </tr>`;
+  }
+
+  if (diseaseOverride && compost.diseasePerCycle > 0) {
+    rows += `
+    <tr>
+      <td style="color:var(--green-bright)">Pharm Ecology Relic</td>
+      <td>All patches disease-free</td>
+      <td style="color:var(--green-bright)">&#10003;</td>
+    </tr>`;
+  }
+
+  rows += `
+    <tr class="total-row">
+      <td colspan="2" style="font-family:'Cinzel',serif; color:var(--gold); text-transform:uppercase; font-size:13px; letter-spacing:1.5px;">Est. Net Profit Per Run</td>
+      <td class="gp highlight">${totalProfit > 0 ? '+' : ''}${totalProfit.toLocaleString()} gp</td>
+    </tr>`;
+
+  // Update compost note
+  const noteEl = document.getElementById('compostNote');
+  if (compost.diseasePerCycle > 0.07) {
+    noteEl.innerHTML = `<span class="disease-warn">${diseasePercent}% disease risk per patch (${Math.round(compost.diseasePerCycle * 100)}% per cycle &times; ${HERB_GROWTH_CYCLES} cycles)</span>`;
+  } else if (compost.diseasePerCycle <= 0.07) {
+    noteEl.innerHTML = `<span class="disease-safe">${diseasePercent}% disease risk per patch</span>`;
+  }
+
+  document.getElementById('profitTable').innerHTML = `
+    <thead><tr><th>Item</th><th>Details</th><th>GP</th></tr></thead>
+    <tbody>${rows}</tbody>`;
+}
+
+// =============================================
+// RUN TIMER
+// =============================================
+function toggleTimer() {
+  const btn = document.getElementById('timerBtn');
+  if (timerRunning) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    btn.textContent = 'Resume';
+    btn.classList.remove('active');
+  } else {
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      updateTimerDisplay();
+      updateStats();
+    }, 1000);
+    timerRunning = true;
+    btn.textContent = 'Pause';
+    btn.classList.add('active');
+  }
+  syncCompactTimerBtn();
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerSeconds = 0;
+  updateTimerDisplay();
+  document.getElementById('timerBtn').textContent = 'Start';
+  document.getElementById('timerBtn').classList.remove('active');
+  document.getElementById('gpPerMin').textContent = '\u2014';
+  syncCompactTimerBtn();
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerSeconds / 60);
+  const s = timerSeconds % 60;
+  const text = `${m}:${s.toString().padStart(2, '0')}`;
+  document.getElementById('timerDisplay').textContent = text;
+  // Sync compact timer
+  const compactDisplay = document.getElementById('compactTimerDisplay');
+  if (compactDisplay) compactDisplay.textContent = text;
+}
+
+// =============================================
+// PROGRESS BAR
+// =============================================
+function updateProgressBar() {
+  const active = getActivePatches();
+  const activeCount = active.length;
+  const doneCount = active.filter(p => checked[p.id] || died[p.id]).length;
+  const pct = activeCount > 0 ? Math.round((doneCount / activeCount) * 100) : 0;
+  const isComplete = activeCount > 0 && doneCount === activeCount;
+
+  const fill = document.getElementById('progressFill');
+  const text = document.getElementById('progressText');
+  const pctEl = document.getElementById('progressPct');
+  const wrap = document.getElementById('progressWrap');
+
+  fill.style.width = pct + '%';
+  text.textContent = `${doneCount} / ${activeCount} patches`;
+  pctEl.textContent = pct + '%';
+
+  if (isComplete) {
+    fill.classList.add('complete');
+    wrap.classList.add('complete');
+    // Trigger celebration if not already shown for this run
+    if (!runCelebrationShown) {
+      runCelebrationShown = true;
+      showRunComplete();
+    }
+  } else {
+    fill.classList.remove('complete');
+    wrap.classList.remove('complete');
+    runCelebrationShown = false;
+  }
+}
+
+let runCelebrationShown = false;
+
+function showRunComplete() {
+  playCoinClink();
+  // Gold shimmer on header
+  const h1 = document.querySelector('.header h1');
+  h1.classList.remove('shimmer');
+  void h1.offsetWidth; // force reflow
+  h1.classList.add('shimmer');
+
+  // Toast with profit and time
+  const toast = document.getElementById('runCompleteToast');
+  const profitEl = document.getElementById('rctProfit');
+  const timeEl = document.getElementById('rctTime');
+
+  const profitText = document.getElementById('estProfit').textContent;
+  const timerText = document.getElementById('timerDisplay').textContent;
+
+  profitEl.textContent = '+' + profitText;
+  timeEl.textContent = timerText !== '0:00' ? timerText : '';
+
+  toast.classList.add('show');
+  setTimeout(() => { toast.classList.remove('show'); }, 3500);
+}
+
+// RESET CONFIRMATION
+function showResetConfirm() {
+  document.getElementById('resetConfirmOverlay').classList.add('show');
+}
+
+function closeResetConfirm() {
+  document.getElementById('resetConfirmOverlay').classList.remove('show');
+}
+
+function confirmResetRun() {
+  closeResetConfirm();
+  resetRun();
+}
+
+// =============================================
+// INSTRUCTIONS PANEL
+// =============================================
+function toggleInstructions() {
+  const panel = document.getElementById('instructionsPanel');
+  const btn = document.getElementById('instructionsToggle');
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+  localStorage.setItem('herbrun_instructions_dismissed', isOpen ? '' : '1');
+}
+
+// On first visit, show instructions automatically
+(function() {
+  const dismissed = localStorage.getItem('herbrun_instructions_dismissed');
+  if (dismissed !== '1') {
+    document.getElementById('instructionsPanel').classList.add('open');
+    document.getElementById('instructionsToggle').classList.add('active');
+  }
+})();
+
+// Initialize sound toggle button state
+(function() {
+  const btn = document.getElementById('soundToggle');
+  if (btn) {
+    btn.classList.toggle('active', soundEnabled);
+    btn.querySelector('#soundIcon').textContent = soundEnabled ? '\u{1F50A}' : '\u{1F507}';
+  }
+})();
+
+// FARMING UNLOCKS
+// =============================================
+let farmingUnlocks = {
+  secateurs: true,
+  juju: true,
+  greenfingers: 0,
+  masterFarmer: false,
+  farmingCape: false,
+  scrollOfLife: false,
+  pharmEcology: false,
+};
+
+function handleUnlockToggle() {
+  farmingUnlocks.secateurs = document.querySelector('#toggle-secateurs input').checked;
+  farmingUnlocks.juju = document.querySelector('#toggle-juju input').checked;
+  farmingUnlocks.greenfingers = parseFloat(document.getElementById('greenfingersSelect').value);
+  farmingUnlocks.masterFarmer = document.querySelector('#toggle-masterFarmer input').checked;
+  farmingUnlocks.farmingCape = document.querySelector('#toggle-farmingCape input').checked;
+  farmingUnlocks.scrollOfLife = document.querySelector('#toggle-scrollOfLife input').checked;
+  farmingUnlocks.pharmEcology = document.querySelector('#toggle-pharmEcology input').checked;
+
+  // Update active states for styling
+  document.querySelectorAll('.unlock-toggle').forEach(el => {
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb) el.classList.toggle('active', cb.checked);
+  });
+  const gfVal = parseFloat(document.getElementById('greenfingersSelect').value);
+  document.getElementById('toggle-greenfingers').classList.toggle('active', gfVal > 0);
+
+  updateUnlocksSummary();
+  updateEffectiveYield();
+  updateStats();
+  saveState();
+}
+
+function getYieldMultiplier() {
+  let mult = 1;
+  if (farmingUnlocks.secateurs) mult *= UNLOCK_MULTIPLIERS.secateurs;
+  if (farmingUnlocks.juju) mult *= UNLOCK_MULTIPLIERS.juju;
+  if (farmingUnlocks.greenfingers > 0) mult *= (1 + farmingUnlocks.greenfingers);
+  if (farmingUnlocks.masterFarmer) mult *= UNLOCK_MULTIPLIERS.masterFarmer;
+  if (farmingUnlocks.farmingCape) mult *= UNLOCK_MULTIPLIERS.farmingCape;
+  return mult;
+}
+
+function getEffectiveYield() {
+  const baseYield = parseInt(document.getElementById('yieldSelect').value);
+  const pp = PLANT_POWER[parseInt(document.getElementById('plantPowerSelect').value)];
+  const compost = COMPOST[document.getElementById('compostSelect').value];
+  return Math.round((baseYield + pp.yieldBonus + compost.yieldMod) * getYieldMultiplier() * 10) / 10;
+}
+
+function updateEffectiveYield() {
+  const ey = getEffectiveYield();
+  document.getElementById('effectiveYieldValue').textContent = ey % 1 === 0 ? ey : ey.toFixed(1);
+}
+
+function updateUnlocksSummary() {
+  let count = 0;
+  if (farmingUnlocks.secateurs) count++;
+  if (farmingUnlocks.juju) count++;
+  if (farmingUnlocks.greenfingers > 0) count++;
+  if (farmingUnlocks.masterFarmer) count++;
+  if (farmingUnlocks.farmingCape) count++;
+  if (farmingUnlocks.scrollOfLife) count++;
+  if (farmingUnlocks.pharmEcology) count++;
+  document.getElementById('unlocksSummary').textContent = count + ' active';
+}
+
+function toggleFarmingUnlocks() {
+  document.getElementById('farmingUnlocksPanel').classList.toggle('open');
+}
+
+function restoreUnlockToggles() {
+  document.querySelector('#toggle-secateurs input').checked = farmingUnlocks.secateurs;
+  document.querySelector('#toggle-juju input').checked = farmingUnlocks.juju;
+  document.getElementById('greenfingersSelect').value = String(farmingUnlocks.greenfingers);
+  document.querySelector('#toggle-masterFarmer input').checked = farmingUnlocks.masterFarmer;
+  document.querySelector('#toggle-farmingCape input').checked = farmingUnlocks.farmingCape;
+  document.querySelector('#toggle-scrollOfLife input').checked = farmingUnlocks.scrollOfLife;
+  document.querySelector('#toggle-pharmEcology input').checked = farmingUnlocks.pharmEcology;
+  // Trigger visual update
+  handleUnlockToggle();
+}
+
+// Initialize unlock toggles on load
+(function() {
+  handleUnlockToggle();
+})();
+
+// COMPACT MODE
+// =============================================
+function toggleCompact() {
+  compactMode = !compactMode;
+  document.body.classList.toggle('compact', compactMode);
+  document.getElementById('compactToggle').classList.toggle('active', compactMode);
+  // Sync compact timer button state
+  syncCompactTimerBtn();
+  saveState();
+}
+
+function syncCompactTimerBtn() {
+  const btn = document.getElementById('compactTimerBtn');
+  if (!btn) return;
+  if (timerRunning) {
+    btn.textContent = 'Pause';
+    btn.classList.add('active');
+  } else if (timerSeconds > 0) {
+    btn.textContent = 'Resume';
+    btn.classList.remove('active');
+  } else {
+    btn.textContent = 'Start';
+    btn.classList.remove('active');
+  }
+}
+
+// =============================================
+// THEME TOGGLE (LIGHT/DARK)
+// =============================================
+function toggleTheme() {
+  lightMode = !lightMode;
+  document.body.classList.toggle('light', lightMode);
+  document.getElementById('themeIcon').textContent = lightMode ? '\u263D' : '\u263C';
+  // Redraw sparkline with correct colors
+  if (runHistory.length >= 2) {
+    requestAnimationFrame(drawSparkline);
+  }
+  saveState();
+}
+
+function getSparklineColor() {
+  return lightMode ? '#1d6a1d' : '#6dc24b';
+}
+
+function getSparklineGradient(ctx, pad, h) {
+  const gradient = ctx.createLinearGradient(0, pad, 0, pad + h);
+  if (lightMode) {
+    gradient.addColorStop(0, 'rgba(42,122,42,0.15)');
+    gradient.addColorStop(1, 'rgba(42,122,42,0)');
+  } else {
+    gradient.addColorStop(0, 'rgba(109,194,75,0.15)');
+    gradient.addColorStop(1, 'rgba(109,194,75,0)');
+  }
+  return gradient;
+}
+
+function getSparklineGridColor() {
+  return lightMode ? 'rgba(42,100,42,0.15)' : 'rgba(100,120,80,0.2)';
+}
+
+function resetRun() {
+  // Save run to history before clearing (only if something was done)
+  saveRunToHistory();
+
+  checked = {};
+  died = {};
+  loadoutChecked = {};
+  resetTimer();
+  renderPatches();
+  updateStats();
+  saveState();
+}
+
+// =============================================
+// RUN HISTORY
+// =============================================
+let runHistory = [];
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (raw) runHistory = JSON.parse(raw);
+    if (!Array.isArray(runHistory)) runHistory = [];
+  } catch (e) { runHistory = []; }
+  renderHistory();
+}
+
+function saveHistoryToStorage() {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(runHistory.slice(0, MAX_HISTORY)));
+  } catch (e) { /* full */ }
+}
+
+function saveRunToHistory() {
+  const active = getActivePatches();
+  const herb = HERBS[document.getElementById('herbSelect').value];
+  const pp = PLANT_POWER[parseInt(document.getElementById('plantPowerSelect').value)];
+  const compost = COMPOST[document.getElementById('compostSelect').value];
+  const totalYield = getEffectiveYield();
+
+  const patchesDone = active.filter(p => checked[p.id] || died[p.id]).length;
+  if (patchesDone === 0) return; // Nothing to log
+
+  const patchesChecked = active.filter(p => checked[p.id]).length;
+  const patchesDied = active.filter(p => died[p.id]).length;
+
+  // Calculate profit (same logic as updateStats)
+  let herbsFromStandard = 0, herbsFromWildy = 0, costStandard = 0, costWildy = 0;
+  active.forEach(p => {
+    const isChecked = checked[p.id];
+    const isDied = died[p.id];
+    if (!isChecked && !isDied) return;
+    if (p.wilderness) {
+      const seedCostW = BLOODWEED.seedCost * pp.seeds * (farmingUnlocks.scrollOfLife ? 0.9 : 1);
+      costWildy += seedCostW + compost.cost;
+      if (isChecked && !isDied) herbsFromWildy += totalYield;
+    } else {
+      const seedCostS = herb.seedCost * pp.seeds * (farmingUnlocks.scrollOfLife ? 0.9 : 1);
+      costStandard += seedCostS + compost.cost;
+      if (isChecked && !isDied) herbsFromStandard += totalYield;
+    }
+  });
+  const totalHerbs = herbsFromStandard + herbsFromWildy;
+  const revenue = (herbsFromStandard * herb.herbPrice) + (herbsFromWildy * BLOODWEED.herbPrice);
+  const jujuCost = (farmingUnlocks.juju && patchesDone > 0) ? JUJU_COST : 0;
+  const profit = revenue - costStandard - costWildy - jujuCost;
+
+  const entry = {
+    timestamp: Date.now(),
+    duration: timerSeconds,
+    herb: herb.name,
+    patchesTotal: active.length,
+    patchesChecked: patchesChecked,
+    patchesDied: patchesDied,
+    herbs: totalHerbs,
+    profit: profit
+  };
+
+  runHistory.unshift(entry);
+  if (runHistory.length > MAX_HISTORY) runHistory.length = MAX_HISTORY;
+  saveHistoryToStorage();
+  renderHistory();
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyContent');
+  const countEl = document.getElementById('historyCount');
+
+  if (runHistory.length === 0) {
+    countEl.textContent = '0 runs';
+    container.innerHTML = '<div class="history-empty">No runs logged yet. Complete a run and reset to log it.</div>';
+    return;
+  }
+
+  countEl.textContent = `${runHistory.length} run${runHistory.length !== 1 ? 's' : ''}`;
+
+  // Summary stats
+  const totalProfit = runHistory.reduce((s, r) => s + r.profit, 0);
+  const avgProfit = Math.round(totalProfit / runHistory.length);
+  const avgDuration = Math.round(runHistory.reduce((s, r) => s + r.duration, 0) / runHistory.length);
+  const totalHerbs = runHistory.reduce((s, r) => s + r.herbs, 0);
+
+  // Runs today
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const runsToday = runHistory.filter(r => r.timestamp >= todayStart.getTime()).length;
+
+  const avgMin = Math.floor(avgDuration / 60);
+  const avgSec = avgDuration % 60;
+
+  let html = `
+    <div class="history-summary">
+      <div class="history-stat">
+        <div class="hs-label">Total Profit</div>
+        <div class="hs-value profit">${totalProfit > 0 ? '+' : ''}${abbreviateGP(totalProfit)}</div>
+      </div>
+      <div class="history-stat">
+        <div class="hs-label">Avg Profit/Run</div>
+        <div class="hs-value profit">${avgProfit > 0 ? '+' : ''}${abbreviateGP(avgProfit)}</div>
+      </div>
+      <div class="history-stat">
+        <div class="hs-label">Avg Run Time</div>
+        <div class="hs-value">${avgMin}:${avgSec.toString().padStart(2,'0')}</div>
+      </div>
+      <div class="history-stat">
+        <div class="hs-label">Runs Today</div>
+        <div class="hs-value">${runsToday}</div>
+      </div>
+    </div>`;
+
+  // Sparkline (profit over last 20 runs, reversed to chronological)
+  if (runHistory.length >= 2) {
+    html += `
+    <div class="sparkline-container">
+      <div class="sparkline-title">Profit Trend (Last ${Math.min(20, runHistory.length)} Runs)</div>
+      <canvas class="sparkline-canvas" id="sparklineCanvas"></canvas>
+    </div>`;
+  }
+
+  // Table (last 20 runs)
+  const display = runHistory.slice(0, 20);
+  html += `
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Herb</th>
+          <th>Time</th>
+          <th>Patches</th>
+          <th style="text-align:right">Profit</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${display.map(r => {
+          const d = new Date(r.timestamp);
+          const when = formatRelativeTime(r.timestamp);
+          const m = Math.floor(r.duration / 60);
+          const s = r.duration % 60;
+          const diedStr = r.patchesDied > 0 ? ` <span style="color:var(--red-bright)">(${r.patchesDied} died)</span>` : '';
+          const profitClass = r.profit >= 0 ? 'ht-profit' : 'ht-loss';
+          return `<tr>
+            <td class="ht-dim">${when}</td>
+            <td>${r.herb}</td>
+            <td class="ht-mono">${m}:${s.toString().padStart(2,'0')}</td>
+            <td>${r.patchesChecked}/${r.patchesTotal}${diedStr}</td>
+            <td class="ht-mono ${profitClass}" style="text-align:right">${r.profit >= 0 ? '+' : ''}${r.profit.toLocaleString()}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <button class="history-clear-btn" onclick="clearHistory()">Clear History</button>`;
+
+  container.innerHTML = html;
+
+  // Draw sparkline after DOM update
+  if (runHistory.length >= 2) {
+    requestAnimationFrame(drawSparkline);
+  }
+}
+
+function drawSparkline() {
+  const canvas = document.getElementById('sparklineCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 32; // subtract padding
+  canvas.height = 60;
+
+  const data = runHistory.slice(0, 20).reverse(); // chronological
+  if (data.length < 2) return;
+
+  const profits = data.map(r => r.profit);
+  const min = Math.min(...profits);
+  const max = Math.max(...profits);
+  const range = max - min || 1;
+  const pad = 4;
+  const w = canvas.width - pad * 2;
+  const h = canvas.height - pad * 2;
+
+  // Draw zero line if range crosses zero
+  if (min < 0 && max > 0) {
+    const zeroY = pad + h - ((0 - min) / range) * h;
+    ctx.strokeStyle = getSparklineGridColor();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(pad, zeroY);
+    ctx.lineTo(pad + w, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw line
+  const lineColor = getSparklineColor();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  profits.forEach((val, i) => {
+    const x = pad + (i / (profits.length - 1)) * w;
+    const y = pad + h - ((val - min) / range) * h;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Draw gradient fill
+  const gradient = getSparklineGradient(ctx, pad, h);
+  ctx.lineTo(pad + w, pad + h);
+  ctx.lineTo(pad, pad + h);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Draw dots on endpoints
+  [0, profits.length - 1].forEach(i => {
+    const x = pad + (i / (profits.length - 1)) * w;
+    const y = pad + h - ((profits[i] - min) / range) * h;
+    ctx.fillStyle = lineColor;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function abbreviateGP(val) {
+  const abs = Math.abs(val);
+  const sign = val < 0 ? '-' : '';
+  if (abs >= 1000000) return sign + (abs / 1000000).toFixed(1) + 'M';
+  if (abs >= 1000) return sign + (abs / 1000).toFixed(0) + 'K';
+  return sign + abs.toLocaleString();
+}
+
+function formatRelativeTime(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function toggleHistory() {
+  document.getElementById('historySection').classList.toggle('open');
+}
+
+function clearHistory() {
+  if (!confirm('Clear all run history? This cannot be undone.')) return;
+  runHistory = [];
+  saveHistoryToStorage();
+  renderHistory();
+}
+
+// =============================================
+// PRE-RUN LOADOUT
+// =============================================
+function renderLoadout() {
+  const items = buildLoadoutItems();
+  const grid = document.getElementById('loadoutGrid');
+
+  grid.innerHTML = items.map(item => {
+    const isChecked = loadoutChecked[item.id];
+    return `
+      <div class="loadout-item ${isChecked ? 'checked' : ''}" onclick="toggleLoadoutItem('${item.id}')">
+        <img class="loadout-item-icon" src="${item.icon}" alt="${item.name}"
+             onerror="this.outerHTML='<div class=\\'loadout-item-icon fallback\\'>&#9881;</div>'">
+        <div class="loadout-item-info">
+          <div class="loadout-item-name">${item.name}</div>
+          <div class="loadout-item-qty">${item.qty}</div>
+        </div>
+        <div class="loadout-check">
+          <svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg>
+        </div>
+      </div>`;
+  }).join('');
+
+  updateLoadoutProgress();
+}
+
+function toggleLoadoutItem(id) {
+  loadoutChecked[id] = !loadoutChecked[id];
+  renderLoadout();
+  saveState();
+}
+
+function toggleLoadout() {
+  document.getElementById('loadoutSection').classList.toggle('open');
+}
+
+function updateLoadoutProgress() {
+  const items = buildLoadoutItems();
+  const total = items.length;
+  const done = items.filter(i => loadoutChecked[i.id]).length;
+  const el = document.getElementById('loadoutProgress');
+  el.textContent = `${done} / ${total} ready`;
+  el.classList.toggle('complete', done === total && total > 0);
+}
+
+// =============================================
+// KEYBOARD SHORTCUTS
+// =============================================
+function openShortcuts() {
+  document.getElementById('shortcutOverlay').classList.add('show');
+}
+
+function closeShortcuts() {
+  document.getElementById('shortcutOverlay').classList.remove('show');
+}
+
+document.addEventListener('keydown', (e) => {
+  // Ignore if typing in an input/select/textarea
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+
+  const overlayOpen = document.getElementById('shortcutOverlay').classList.contains('show');
+
+  // Escape always closes overlay
+  if (e.key === 'Escape') {
+    if (overlayOpen) { closeShortcuts(); e.preventDefault(); }
+    return;
+  }
+
+  // ? toggles shortcut overlay
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    overlayOpen ? closeShortcuts() : openShortcuts();
+    e.preventDefault();
+    return;
+  }
+
+  // Don't process other shortcuts if overlay is open
+  if (overlayOpen) return;
+
+  // 1-8: toggle active patches by step number
+  if (e.key >= '1' && e.key <= '9') {
+    const num = parseInt(e.key);
+    const active = getActivePatches();
+    // Map ordered active patches to step numbers
+    const ordered = getOrderedPatches();
+    let stepCount = 0;
+    for (const p of ordered) {
+      if (disabled[p.id]) continue;
+      stepCount++;
+      if (stepCount === num) {
+        toggleCheck(p.id);
+        renderPatches(); // re-render to update visual state
+        break;
+      }
+    }
+    e.preventDefault();
+    return;
+  }
+
+  // Space: toggle timer
+  if (e.key === ' ' || e.code === 'Space') {
+    toggleTimer();
+    e.preventDefault();
+    return;
+  }
+
+  // R: reset run (with confirmation)
+  if (e.key === 'r' || e.key === 'R') {
+    showResetConfirm();
+    e.preventDefault();
+    return;
+  }
+
+  // C: toggle compact mode
+  if (e.key === 'c' || e.key === 'C') {
+    toggleCompact();
+    e.preventDefault();
+    return;
+  }
+
+  // P: fetch GE prices
+  if (e.key === 'p' || e.key === 'P') {
+    fetchGEPrices();
+    e.preventDefault();
+    return;
+  }
+
+  // L: toggle light/dark theme
+  if (e.key === 'l' || e.key === 'L') {
+    toggleTheme();
+    e.preventDefault();
+    return;
+  }
+});
+
+// =============================================
+// LIVE GE PRICE FETCH
+// =============================================
+let geFetching = false;
+let lastGEFetch = null;
+
+async function fetchGEPrices() {
+  if (geFetching) return;
+
+  const btn = document.getElementById('geFetchBtn');
+  const status = document.getElementById('geFetchStatus');
+
+  geFetching = true;
+  btn.classList.add('loading');
+  btn.disabled = true;
+  status.textContent = 'Fetching live prices...';
+  status.className = 'ge-fetch-status loading';
+
+  try {
+    // Build pipe-delimited name list for Weird Gloop API
+    const names = [];
+    Object.values(GE_NAMES).forEach(({ seed, herb }) => {
+      names.push(seed);
+      names.push(herb);
+    });
+    names.push('Supercompost');
+    names.push('Ultracompost');
+    const url = `https://api.weirdgloop.org/exchange/history/rs/latest?name=${encodeURIComponent(names.join('|'))}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    // Update HERBS prices
+    let updated = 0;
+    Object.keys(GE_NAMES).forEach(key => {
+      const { seed, herb } = GE_NAMES[key];
+      const seedData = data[seed];
+      const herbData = data[herb];
+
+      if (key === 'bloodweed') {
+        if (seedData && seedData.price) { BLOODWEED.seedCost = seedData.price; updated++; }
+        if (herbData && herbData.price) { BLOODWEED.herbPrice = herbData.price; updated++; }
+      } else if (HERBS[key]) {
+        if (seedData && seedData.price) { HERBS[key].seedCost = seedData.price; updated++; }
+        if (herbData && herbData.price) { HERBS[key].herbPrice = herbData.price; updated++; }
+      }
+    });
+
+    // Update compost prices
+    if (data['Supercompost'] && data['Supercompost'].price) {
+      COMPOST.super.cost = data['Supercompost'].price; updated++;
+    }
+    if (data['Ultracompost'] && data['Ultracompost'].price) {
+      COMPOST.ultra.cost = data['Ultracompost'].price; updated++;
+    }
+    // Update compost dropdown labels with live prices
+    const compostSel = document.getElementById('compostSelect');
+    compostSel.options[0].textContent = `Ultracompost (${COMPOST.ultra.cost.toLocaleString()} gp)`;
+    compostSel.options[1].textContent = `Supercompost (${COMPOST.super.cost.toLocaleString()} gp)`;
+
+    lastGEFetch = Date.now();
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    status.textContent = `Updated ${updated} prices at ${time}`;
+    status.className = 'ge-fetch-status updated';
+
+    // Refresh everything with new prices
+    updateStats();
+    renderProfitTable();
+
+  } catch (err) {
+    console.error('GE price fetch failed:', err);
+    status.textContent = 'Fetch failed \u2014 using defaults';
+    status.className = 'ge-fetch-status error';
+  } finally {
+    geFetching = false;
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// =============================================
+// EVENTS
+// =============================================
+document.getElementById('herbSelect').addEventListener('change', () => { updateStats(); saveState(); });
+document.getElementById('yieldSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); saveState(); });
+document.getElementById('plantPowerSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); saveState(); });
+document.getElementById('compostSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); saveState(); });
+
+// =============================================
+// ALT1 INSTALL BANNER (browser-only)
+// =============================================
+if (!isAlt1) {
+  const banner = document.getElementById('alt1InstallBanner');
+  if (banner) {
+    // Build the install URL from the current page location
+    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+    const link = banner.querySelector('a');
+    if (link) {
+      link.href = 'alt1://addapp/' + baseUrl + 'appconfig.json';
+    }
+    banner.style.display = 'block';
+  }
+}
+
+// =============================================
+// INIT
+// =============================================
+loadState();
+loadHistory();
+renderPatches();
+updateStats();
+
+// Alt1: auto-fetch GE prices on load for convenience
+if (isAlt1) {
+  setTimeout(fetchGEPrices, 500);
+}
+</script>
+</body>
+</html>
