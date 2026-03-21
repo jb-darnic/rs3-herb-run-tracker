@@ -2492,6 +2492,7 @@
 <div class="app">
   <div class="header">
     <h1><img class="farming-icon" src="https://runescape.wiki/images/thumb/Farming-icon.png/42px-Farming-icon.png?a1230" alt="Farming">Herb Run Tracker</h1>
+    <div style="font-family: 'Crimson Text', serif; font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px;">created by edan</div>
   </div>
 
   <!-- Instructions Panel (toggleable) -->
@@ -3962,6 +3963,10 @@ function updateProgressBar() {
     if (!runCelebrationShown) {
       runCelebrationShown = true;
       showRunComplete();
+      // Auto-reset after a short delay so the player sees the celebration
+      setTimeout(() => {
+        resetRun();
+      }, 2000);
     }
   } else {
     fill.classList.remove('complete');
@@ -4698,11 +4703,10 @@ document.getElementById('compostSelect').addEventListener('change', () => { upda
 if (!isAlt1) {
   const banner = document.getElementById('alt1InstallBanner');
   if (banner) {
-    // Build the install URL from the current page location
-    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+    // Always point to GitHub Pages — Alt1 only endorses GitHub-hosted plugins
     const link = banner.querySelector('a');
     if (link) {
-      link.href = 'alt1://addapp/' + baseUrl + 'appconfig.json';
+      link.href = 'alt1://addapp/https://jb-darnic.github.io/rs3-herb-run-tracker/appconfig.json';
     }
     banner.style.display = 'block';
   }
