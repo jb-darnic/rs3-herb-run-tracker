@@ -6,6 +6,7 @@
 <meta name="alt1:configurl" content="appconfig.json">
 <title>RS3 Herb Run Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://runeapps.org/alt1lib.js" defer></script>
 <style>
   :root {
     --gold: #d4a017;
@@ -1396,6 +1397,71 @@
   .progress-bar-fill.complete ~ .progress-bar-label .pbl-pct,
   .progress-bar-wrap.complete .pbl-pct { color: var(--green-bright); }
 
+  /* === AUTO-DETECT ROW === */
+  .auto-detect-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .auto-detect-badge {
+    font-family: 'Crimson Text', serif;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-dim);
+    user-select: none;
+    transition: all 0.2s;
+  }
+  .auto-detect-badge.active {
+    color: var(--green-bright);
+    border-color: var(--green-bright);
+    background: rgba(34, 139, 34, 0.1);
+  }
+  .auto-detect-badge.needs-permission,
+  .auto-detect-badge.no-capture,
+  .auto-detect-badge.error {
+    color: var(--red-bright);
+    border-color: var(--red-bright);
+  }
+  .auto-detect-badge.no-chatbox {
+    color: var(--gold);
+    border-color: var(--gold);
+  }
+  .next-patch-btn {
+    font-family: 'Crimson Text', serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--gold-dim);
+    background: linear-gradient(135deg, rgba(212,160,23,0.12), rgba(212,160,23,0.04));
+    color: var(--gold-bright);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .next-patch-btn:hover {
+    background: linear-gradient(135deg, rgba(212,160,23,0.22), rgba(212,160,23,0.10));
+    border-color: var(--gold-bright);
+  }
+  .next-patch-btn:active {
+    transform: scale(0.97);
+  }
+
+  /* Just-checked flash animation */
+  @keyframes justChecked {
+    0% { box-shadow: 0 0 0 0 rgba(34, 139, 34, 0.6); }
+    50% { box-shadow: 0 0 12px 4px rgba(34, 139, 34, 0.4); }
+    100% { box-shadow: none; }
+  }
+  .patch-card.just-checked {
+    animation: justChecked 0.6s ease-out;
+  }
+
   /* === COMPACT MODE TOGGLE === */
   .compact-toggle {
     position: fixed;
@@ -1477,7 +1543,9 @@
 
   /* Hide less important stats in compact */
   body.compact .stat-card:nth-child(4),
-  body.compact .stat-card:nth-child(5) { display: none; }
+  body.compact .stat-card:nth-child(5),
+  body.compact .stat-card:nth-child(6),
+  body.compact .stat-card:nth-child(7) { display: none; }
 
   body.compact .patch-card { margin-bottom: 4px; border-radius: 5px; }
   body.compact .patch-main {
@@ -1642,6 +1710,7 @@
 
   .ge-fetch-status.updated { color: var(--green-bright); }
   .ge-fetch-status.error { color: var(--red-bright); }
+  .ge-fetch-status.stale { color: var(--gold); }
   .ge-fetch-status.loading { color: var(--gold); }
 
   .ge-fetch-btn {
@@ -2404,6 +2473,9 @@
   body.alt1 .ge-fetch-bar { padding: 8px 10px; margin-bottom: 8px; }
   body.alt1 .ge-fetch-label { font-size: 10px; }
   body.alt1 .ge-fetch-status { font-size: 11px; }
+  body.alt1 .auto-detect-row { margin-bottom: 6px; gap: 6px; }
+  body.alt1 .auto-detect-badge { font-size: 11px; padding: 2px 8px; }
+  body.alt1 .next-patch-btn { font-size: 11px; padding: 3px 10px; }
   body.alt1 .ge-fetch-btn { font-size: 10px; padding: 4px 10px; }
 
   /* --- Loadout Section --- */
@@ -2571,14 +2643,26 @@
     <div class="control-group">
       <label>Primary Herb</label>
       <select id="herbSelect">
-        <option value="kwuarm" selected>Kwuarm (Best Profit)</option>
-        <option value="spirit_weed">Spirit Weed</option>
-        <option value="harralander">Harralander</option>
-        <option value="dwarf_weed">Dwarf Weed</option>
-        <option value="lantadyme">Lantadyme</option>
-        <option value="torstol">Torstol</option>
-        <option value="arbuck">Arbuck</option>
+        <option value="guam">Guam (Lvl 9)</option>
+        <option value="marrentill">Marrentill (Lvl 14)</option>
+        <option value="tarromin">Tarromin (Lvl 19)</option>
+        <option value="harralander">Harralander (Lvl 26)</option>
+        <option value="ranarr">Ranarr (Lvl 32)</option>
+        <option value="spirit_weed">Spirit Weed (Lvl 36)</option>
+        <option value="toadflax">Toadflax (Lvl 38)</option>
+        <option value="irit">Irit (Lvl 44)</option>
+        <option value="wergali">Wergali (Lvl 46)</option>
+        <option value="avantoe">Avantoe (Lvl 50)</option>
+        <option value="kwuarm" selected>Kwuarm (Lvl 56)</option>
+        <option value="snapdragon">Snapdragon (Lvl 62)</option>
+        <option value="cadantine">Cadantine (Lvl 67)</option>
+        <option value="lantadyme">Lantadyme (Lvl 73)</option>
+        <option value="arbuck">Arbuck (Lvl 77)</option>
+        <option value="dwarf_weed">Dwarf Weed (Lvl 79)</option>
+        <option value="torstol">Torstol (Lvl 85)</option>
+        <option value="fellstalk">Fellstalk (Lvl 91)</option>
       </select>
+      <div id="bestHerbBadge" style="display:none; font-size:11px; color:var(--green-bright); margin-top:4px; font-family:'Crimson Text',serif; letter-spacing:0.3px;"></div>
     </div>
     <div class="control-group">
       <label>Base Yield Per Patch</label>
@@ -2732,6 +2816,43 @@
     </div>
   </div>
 
+  <!-- Phone Notification (ntfy.sh) -->
+  <div class="settings-panel" id="ntfyPanel">
+    <div class="settings-header" onclick="toggleNtfy()">
+      <div class="settings-header-left">
+        <span class="settings-title">Phone Notifications</span>
+        <span class="settings-summary" id="ntfySummary">off</span>
+      </div>
+      <svg class="settings-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="settings-body">
+      <div style="padding: 4px 0 10px; font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+        Get a push notification on your phone when herbs are ready. Free, no account needed.
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+        <div style="flex: 1;">
+          <label style="display: block; font-family: 'MedievalSharp', serif; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold-dim); margin-bottom: 4px;">ntfy Topic</label>
+          <input type="text" id="ntfyTopic" placeholder="e.g. my-herb-run-123"
+                 style="width: 100%; background: var(--bg-deep); border: 1px solid var(--border); color: var(--text-bright); padding: 7px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"
+                 oninput="saveNtfyTopic()">
+        </div>
+        <button onclick="testNtfy()" style="margin-top: 16px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 7px 12px; border-radius: 4px; cursor: pointer; font-family: 'MedievalSharp', serif; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; transition: all 0.2s;"
+                onmouseover="this.style.borderColor='var(--gold-dim)';this.style.color='var(--gold)'"
+                onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"
+                id="ntfyTestBtn">Test</button>
+      </div>
+      <div id="ntfyStatus" style="font-size: 12px; color: var(--text-dim); min-height: 16px;"></div>
+      <div style="margin-top: 10px; padding: 10px 12px; background: rgba(212,160,23,0.06); border: 1px solid rgba(212,160,23,0.12); border-radius: 5px; font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+        <strong style="color: var(--gold);">Setup (one time):</strong><br>
+        1. Install the free <strong>ntfy</strong> app on your phone
+        (<a href="https://apps.apple.com/us/app/ntfy/id1625396347" target="_blank" rel="noopener" style="color: var(--green-bright);">iOS</a> /
+        <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener" style="color: var(--green-bright);">Android</a>)<br>
+        2. In the app, subscribe to the same topic you enter above<br>
+        3. That's it &mdash; you'll get a ping when herbs are ready
+      </div>
+    </div>
+  </div>
+
   <!-- GE Price Fetch -->
   <div class="ge-fetch-bar" id="geFetchBar">
     <div class="ge-fetch-left">
@@ -2766,6 +2887,14 @@
       <div class="stat-label">Est. Run Time</div>
       <div class="stat-value" id="estRunTime">&mdash;</div>
     </div>
+    <div class="stat-card stat-profit">
+      <div class="stat-label">GP / Hour (incl. wait)</div>
+      <div class="stat-value profit" id="gpPerHour">&mdash;</div>
+    </div>
+    <div class="stat-card stat-profit">
+      <div class="stat-label">Today's Profit</div>
+      <div class="stat-value profit" id="todayProfit">&mdash;</div>
+    </div>
   </div>
 
   <!-- Progress Bar -->
@@ -2777,6 +2906,14 @@
       <span id="progressText">0 / 8 patches</span>
       <span class="pbl-pct" id="progressPct">0%</span>
     </div>
+  </div>
+
+  <!-- Auto-detect badge + Next Patch button -->
+  <div class="auto-detect-row">
+    <div class="auto-detect-badge off" id="autoDetectBadge" onclick="toggleChatReader()" style="display:none">&#x26AA; Auto-Detect OFF</div>
+    <button class="next-patch-btn" id="nextPatchBtn" onclick="checkNextPatch()" title="Check next unchecked patch (N)">
+      Next Patch &#x25B6;
+    </button>
   </div>
 
   <!-- Compact Timer Bar (only visible in compact mode) -->
@@ -2842,6 +2979,7 @@
   <div class="shortcut-modal">
     <h2>Keyboard Shortcuts</h2>
     <div class="shortcut-row"><span class="shortcut-key"><kbd>1</kbd>&ndash;<kbd>8</kbd></span><span class="shortcut-desc">Toggle patch checkmark</span></div>
+    <div class="shortcut-row"><span class="shortcut-key"><kbd>N</kbd></span><span class="shortcut-desc">Check next unchecked patch</span></div>
     <div class="shortcut-row"><span class="shortcut-key"><kbd>Space</kbd></span><span class="shortcut-desc">Start / pause timer</span></div>
     <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Reset all checkmarks</span></div>
     <div class="shortcut-row"><span class="shortcut-key"><kbd>C</kbd></span><span class="shortcut-desc">Toggle compact mode</span></div>
@@ -3008,13 +3146,24 @@ function toggleSound() {
 // DATA
 // =============================================
 const HERBS = {
-  kwuarm:      { name: 'Kwuarm',      seedCost: 648,    herbPrice: 5013 },
-  spirit_weed: { name: 'Spirit Weed', seedCost: 1681,   herbPrice: 5335 },
-  harralander: { name: 'Harralander', seedCost: 3651,   herbPrice: 5737 },
-  dwarf_weed:  { name: 'Dwarf Weed',  seedCost: 2476,   herbPrice: 4839 },
-  lantadyme:   { name: 'Lantadyme',   seedCost: 864,    herbPrice: 4547 },
-  torstol:     { name: 'Torstol',     seedCost: 2599,   herbPrice: 4599 },
-  arbuck:      { name: 'Arbuck',      seedCost: 32639,  herbPrice: 8004 },
+  guam:        { name: 'Guam',        seedCost: 41,     herbPrice: 578,  level: 9  },
+  marrentill:  { name: 'Marrentill',  seedCost: 41,     herbPrice: 220,  level: 14 },
+  tarromin:    { name: 'Tarromin',    seedCost: 52,     herbPrice: 134,  level: 19 },
+  harralander: { name: 'Harralander', seedCost: 3651,   herbPrice: 5737, level: 26 },
+  ranarr:      { name: 'Ranarr',      seedCost: 1283,   herbPrice: 2474, level: 32 },
+  spirit_weed: { name: 'Spirit Weed', seedCost: 1681,   herbPrice: 5335, level: 36 },
+  toadflax:    { name: 'Toadflax',    seedCost: 1690,   herbPrice: 4927, level: 38 },
+  irit:        { name: 'Irit',        seedCost: 555,    herbPrice: 4154, level: 44 },
+  wergali:     { name: 'Wergali',     seedCost: 622,    herbPrice: 1035, level: 46 },
+  avantoe:     { name: 'Avantoe',     seedCost: 674,    herbPrice: 2863, level: 50 },
+  kwuarm:      { name: 'Kwuarm',      seedCost: 648,    herbPrice: 5013, level: 56 },
+  snapdragon:  { name: 'Snapdragon',  seedCost: 1029,   herbPrice: 2104, level: 62 },
+  cadantine:   { name: 'Cadantine',   seedCost: 719,    herbPrice: 3476, level: 67 },
+  lantadyme:   { name: 'Lantadyme',   seedCost: 864,    herbPrice: 4547, level: 73 },
+  arbuck:      { name: 'Arbuck',      seedCost: 32639,  herbPrice: 8004, level: 77 },
+  dwarf_weed:  { name: 'Dwarf Weed',  seedCost: 2476,   herbPrice: 4839, level: 79 },
+  torstol:     { name: 'Torstol',     seedCost: 2599,   herbPrice: 4599, level: 85 },
+  fellstalk:   { name: 'Fellstalk',   seedCost: 2250,   herbPrice: 3860, level: 91 },
 };
 
 const BLOODWEED = { name: 'Bloodweed', seedCost: 44000, herbPrice: 9200 };
@@ -3051,13 +3200,24 @@ const PLANT_POWER = [
 
 // GE API name mapping (Weird Gloop API uses exact item names)
 const GE_NAMES = {
-  kwuarm:      { seed: 'Kwuarm seed',      herb: 'Grimy kwuarm' },
-  spirit_weed: { seed: 'Spirit weed seed', herb: 'Grimy spirit weed' },
+  guam:        { seed: 'Guam seed',        herb: 'Grimy guam' },
+  marrentill:  { seed: 'Marrentill seed',  herb: 'Grimy marrentill' },
+  tarromin:    { seed: 'Tarromin seed',    herb: 'Grimy tarromin' },
   harralander: { seed: 'Harralander seed', herb: 'Grimy harralander' },
-  dwarf_weed:  { seed: 'Dwarf weed seed',  herb: 'Grimy dwarf weed' },
+  ranarr:      { seed: 'Ranarr seed',      herb: 'Grimy ranarr' },
+  spirit_weed: { seed: 'Spirit weed seed', herb: 'Grimy spirit weed' },
+  toadflax:    { seed: 'Toadflax seed',    herb: 'Grimy toadflax' },
+  irit:        { seed: 'Irit seed',        herb: 'Grimy irit' },
+  wergali:     { seed: 'Wergali seed',     herb: 'Grimy wergali' },
+  avantoe:     { seed: 'Avantoe seed',     herb: 'Grimy avantoe' },
+  kwuarm:      { seed: 'Kwuarm seed',      herb: 'Grimy kwuarm' },
+  snapdragon:  { seed: 'Snapdragon seed',  herb: 'Grimy snapdragon' },
+  cadantine:   { seed: 'Cadantine seed',   herb: 'Grimy cadantine' },
   lantadyme:   { seed: 'Lantadyme seed',   herb: 'Grimy lantadyme' },
-  torstol:     { seed: 'Torstol seed',     herb: 'Grimy torstol' },
   arbuck:      { seed: 'Arbuck seed',      herb: 'Grimy arbuck' },
+  dwarf_weed:  { seed: 'Dwarf weed seed',  herb: 'Grimy dwarf weed' },
+  torstol:     { seed: 'Torstol seed',     herb: 'Grimy torstol' },
+  fellstalk:   { seed: 'Fellstalk seed',   herb: 'Grimy fellstalk' },
   bloodweed:   { seed: 'Bloodweed seed',   herb: 'Grimy bloodweed' }
 };
 const STORAGE_KEY = 'rs3_herb_tracker';
@@ -3429,8 +3589,8 @@ function sendNotification() {
         alt1.overLayTextEx('Herbs ready! Time for a run.', 0x00FF00, 20, 10, 30, 4000, '', true);
       }
     } catch (e) { /* Alt1 overlay failed */ }
-    return;
   }
+  // Browser notification
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('RS3 Herb Run Tracker', {
@@ -3439,6 +3599,89 @@ function sendNotification() {
       });
     } catch (e) { /* notification failed */ }
   }
+  // Phone push via ntfy.sh
+  sendNtfyNotification('Your herbs are ready to harvest! Time for another run.');
+}
+
+// =============================================
+// PHONE NOTIFICATIONS (ntfy.sh)
+// =============================================
+let ntfyTopic = localStorage.getItem('herbrun_ntfy_topic') || '';
+
+function saveNtfyTopic() {
+  ntfyTopic = document.getElementById('ntfyTopic').value.trim();
+  localStorage.setItem('herbrun_ntfy_topic', ntfyTopic);
+  updateNtfySummary();
+}
+
+function restoreNtfyTopic() {
+  const input = document.getElementById('ntfyTopic');
+  if (input && ntfyTopic) {
+    input.value = ntfyTopic;
+  }
+  updateNtfySummary();
+}
+
+function updateNtfySummary() {
+  const el = document.getElementById('ntfySummary');
+  if (el) {
+    el.textContent = ntfyTopic ? 'on' : 'off';
+    el.style.color = ntfyTopic ? 'var(--green-bright)' : '';
+  }
+}
+
+function toggleNtfy() {
+  document.getElementById('ntfyPanel').classList.toggle('open');
+}
+
+async function sendNtfyNotification(message) {
+  if (!ntfyTopic) return;
+  try {
+    await fetch('https://ntfy.sh/' + encodeURIComponent(ntfyTopic), {
+      method: 'POST',
+      headers: { 'Title': 'RS3 Herb Run Tracker' },
+      body: message
+    });
+  } catch (e) { /* ntfy send failed — network error or offline */ }
+}
+
+async function testNtfy() {
+  const topic = document.getElementById('ntfyTopic').value.trim();
+  const status = document.getElementById('ntfyStatus');
+  const btn = document.getElementById('ntfyTestBtn');
+
+  if (!topic) {
+    status.textContent = 'Enter a topic name first';
+    status.style.color = 'var(--red-bright)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '...';
+  status.textContent = 'Sending test...';
+  status.style.color = 'var(--gold)';
+
+  try {
+    const resp = await fetch('https://ntfy.sh/' + encodeURIComponent(topic), {
+      method: 'POST',
+      headers: { 'Title': 'RS3 Herb Run Tracker' },
+      body: 'Test notification — if you see this on your phone, it works!'
+    });
+
+    if (resp.ok) {
+      status.textContent = 'Sent! Check your phone (make sure ntfy app is subscribed to "' + topic + '")';
+      status.style.color = 'var(--green-bright)';
+    } else {
+      status.textContent = 'Failed (HTTP ' + resp.status + '). Check your topic name.';
+      status.style.color = 'var(--red-bright)';
+    }
+  } catch (e) {
+    status.textContent = 'Network error — are you online?';
+    status.style.color = 'var(--red-bright)';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Test';
 }
 
 // =============================================
@@ -3750,6 +3993,23 @@ function updateStats() {
   const runMin = Math.floor(totalRunSec / 60);
   const runSec = totalRunSec % 60;
   document.getElementById('estRunTime').textContent = `${runMin}:${runSec.toString().padStart(2, '0')}`;
+
+  // GP/hr including regrow wait time
+  // This is the real metric players care about — accounts for the full cycle
+  const regrowMs = getRegrowDuration();
+  const regrowMin = regrowMs / 60000;
+  const cycleMin = (totalRunSec / 60) + regrowMin; // run time + regrow wait
+  if (cycleMin > 0 && totalProfit !== 0) {
+    const gpPerHour = Math.round(totalProfit / cycleMin * 60);
+    document.getElementById('gpPerHour').textContent = gpPerHour > 0
+      ? `+${abbreviateGP(gpPerHour)}`
+      : abbreviateGP(gpPerHour);
+  } else {
+    document.getElementById('gpPerHour').textContent = '\u2014';
+  }
+
+  // Today's profit from run history
+  updateTodayProfit();
 
   renderProfitTable();
   updateProgressBar();
@@ -4578,6 +4838,13 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  // N: check next unchecked patch in route order
+  if (e.key === 'n' || e.key === 'N') {
+    checkNextPatch();
+    e.preventDefault();
+    return;
+  }
+
   // R: reset run (with confirmation)
   if (e.key === 'r' || e.key === 'R') {
     showResetConfirm();
@@ -4677,6 +4944,7 @@ async function fetchGEPrices() {
     // Refresh everything with new prices
     updateStats();
     renderProfitTable();
+    updateBestHerbBadge();
 
   } catch (err) {
     console.error('GE price fetch failed:', err);
@@ -4690,12 +4958,100 @@ async function fetchGEPrices() {
 }
 
 // =============================================
+// TODAY'S PROFIT
+// =============================================
+function updateTodayProfit() {
+  const el = document.getElementById('todayProfit');
+  if (!el) return;
+  // Guard: runHistory may not be initialized yet during early init
+  try { if (!runHistory) return; } catch(e) { return; }
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayRuns = runHistory.filter(r => r.timestamp >= todayStart.getTime());
+  if (todayRuns.length === 0) {
+    el.textContent = '\u2014';
+    return;
+  }
+  const todayTotal = todayRuns.reduce((s, r) => s + r.profit, 0);
+  el.textContent = (todayTotal > 0 ? '+' : '') + abbreviateGP(todayTotal);
+}
+
+// =============================================
+// BEST HERB RECOMMENDATION
+// =============================================
+function getBestHerbRecommendation() {
+  const pp = PLANT_POWER[parseInt(document.getElementById('plantPowerSelect').value)];
+  const compost = COMPOST[document.getElementById('compostSelect').value];
+  const baseYield = parseInt(document.getElementById('yieldSelect').value);
+  const totalY = getEffectiveYield();
+  const scrollSave = farmingUnlocks.scrollOfLife ? 0.9 : 1;
+  const diseaseChance = farmingUnlocks.pharmEcology ? 0 : 1 - Math.pow(1 - compost.diseasePerCycle, HERB_GROWTH_CYCLES);
+  const active = getActivePatches();
+  const stdPatches = active.filter(p => !p.wilderness).length;
+  const survivalRate = 1 - diseaseChance;
+  const immuneStd = active.filter(p => !p.wilderness && p.id === 'trollheim').length;
+  const vulnerableStd = stdPatches - immuneStd;
+
+  let best = null;
+  let bestProfit = -Infinity;
+  Object.keys(HERBS).forEach(key => {
+    const h = HERBS[key];
+    const seedCost = h.seedCost * pp.seeds * scrollSave;
+    const revenue = totalY * h.herbPrice;
+    const immuneRev = immuneStd * revenue;
+    const vulnerableRev = vulnerableStd * revenue * survivalRate;
+    const totalRev = immuneRev + vulnerableRev;
+    const totalSeedCost = (immuneStd + vulnerableStd) * seedCost;
+    const totalCompost = stdPatches * compost.cost;
+    const jujuCost = farmingUnlocks.juju ? JUJU_COST : 0;
+    const profit = totalRev - totalSeedCost - totalCompost - jujuCost;
+    if (profit > bestProfit) {
+      bestProfit = profit;
+      best = h.name;
+    }
+  });
+  return best ? { name: best, profit: bestProfit } : null;
+}
+
+function updateBestHerbBadge() {
+  const el = document.getElementById('bestHerbBadge');
+  if (!el) return;
+  const rec = getBestHerbRecommendation();
+  if (rec && lastGEFetch) {
+    el.textContent = `Best: ${rec.name} (${abbreviateGP(rec.profit)}/run)`;
+    el.style.display = 'inline-block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// =============================================
+// PRICE STALENESS
+// =============================================
+function updatePriceStaleness() {
+  const el = document.getElementById('geFetchStatus');
+  if (!el || !lastGEFetch) return;
+  const mins = Math.floor((Date.now() - lastGEFetch) / 60000);
+  if (mins < 1) return; // just fetched, keep the "Updated X prices" message
+  let ageText;
+  if (mins < 60) ageText = `${mins}m ago`;
+  else if (mins < 1440) ageText = `${Math.floor(mins / 60)}h ago`;
+  else ageText = `${Math.floor(mins / 1440)}d ago`;
+
+  el.textContent = `Prices updated ${ageText}`;
+  el.className = mins > 120 ? 'ge-fetch-status stale' : 'ge-fetch-status updated';
+}
+
+// Refresh staleness indicator every 60s
+setInterval(updatePriceStaleness, 60000);
+
+// =============================================
 // EVENTS
 // =============================================
-document.getElementById('herbSelect').addEventListener('change', () => { updateStats(); saveState(); });
-document.getElementById('yieldSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); saveState(); });
-document.getElementById('plantPowerSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); saveState(); });
-document.getElementById('compostSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); saveState(); });
+document.getElementById('herbSelect').addEventListener('change', () => { updateStats(); updateBestHerbBadge(); saveState(); });
+document.getElementById('yieldSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); updateBestHerbBadge(); saveState(); });
+document.getElementById('plantPowerSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); updateBestHerbBadge(); saveState(); });
+document.getElementById('compostSelect').addEventListener('change', () => { updateEffectiveYield(); updateStats(); updateBestHerbBadge(); saveState(); });
 
 // =============================================
 // ALT1 INSTALL BANNER (browser-only)
@@ -4713,16 +5069,185 @@ if (!isAlt1) {
 }
 
 // =============================================
+// QUICK CHECK NEXT PATCH (keyboard shortcut)
+// =============================================
+function checkNextPatch() {
+  const ordered = getOrderedPatches();
+  for (const p of ordered) {
+    if (disabled[p.id]) continue;
+    if (!checked[p.id] && !died[p.id]) {
+      toggleCheck(p.id);
+      renderPatches();
+      // Brief flash to show which patch was checked
+      const card = document.getElementById('card-' + p.id);
+      if (card) {
+        card.classList.add('just-checked');
+        setTimeout(() => card.classList.remove('just-checked'), 600);
+      }
+      return p;
+    }
+  }
+  return null; // all done
+}
+
+// =============================================
+// ALT1 CHATBOX READER (auto-detect herb picks)
+// =============================================
+let chatReaderActive = false;
+let chatReaderInterval = null;
+let chatReader = null;
+let lastChatLines = [];
+
+// Herb pick message patterns from RS3 chat
+// "You pick a grimy kwuarm." / "You pick a clean kwuarm."
+const HERB_PICK_REGEX = /You pick (?:a |an )(?:grimy |clean )?([\w\s]+)\./i;
+
+// Map herb names (as they appear in chat) to our herb keys
+const CHAT_HERB_NAMES = {};
+Object.keys(HERBS).forEach(key => {
+  CHAT_HERB_NAMES[HERBS[key].name.toLowerCase()] = key;
+});
+// Add bloodweed
+CHAT_HERB_NAMES['bloodweed'] = 'bloodweed';
+
+function initChatReader() {
+  if (!isAlt1 || !window.A1lib) {
+    console.log('ChatReader: Not in Alt1 or a1lib not loaded');
+    return false;
+  }
+
+  try {
+    if (!window.alt1 || typeof alt1.permissionPixel === 'undefined' || !alt1.permissionPixel) {
+      console.log('ChatReader: Pixel permission not granted. Need to reinstall with updated permissions.');
+      updateAutoDetectStatus('needs-permission');
+      return false;
+    }
+
+    chatReader = new A1lib.ChatBoxReader();
+    chatReader.readargs = {
+      colors: [
+        A1lib.mixColor(0, 255, 0),       // green (default game chat)
+        A1lib.mixColor(127, 169, 255),    // blue (filtered game messages)
+        A1lib.mixColor(255, 255, 255),    // white
+        A1lib.mixColor(239, 0, 0),        // red
+        A1lib.mixColor(255, 176, 0),      // orange (game messages)
+        A1lib.mixColor(0, 255, 255),      // cyan
+      ]
+    };
+
+    // Find chatbox in screenshot
+    const img = A1lib.captureHoldFullRs();
+    if (!img) {
+      console.log('ChatReader: Could not capture game screen');
+      updateAutoDetectStatus('no-capture');
+      return false;
+    }
+
+    const found = chatReader.find(img);
+    if (!found) {
+      console.log('ChatReader: Could not find chatbox. Make sure the chatbox is visible.');
+      updateAutoDetectStatus('no-chatbox');
+      return false;
+    }
+
+    console.log('ChatReader: Chatbox found! Starting auto-detection.');
+    chatReaderActive = true;
+    updateAutoDetectStatus('active');
+
+    // Poll chat every 600ms
+    chatReaderInterval = setInterval(readChatMessages, 600);
+    return true;
+
+  } catch (e) {
+    console.error('ChatReader init error:', e);
+    updateAutoDetectStatus('error');
+    return false;
+  }
+}
+
+function readChatMessages() {
+  if (!chatReader || !chatReaderActive) return;
+
+  try {
+    const img = A1lib.captureHoldFullRs();
+    if (!img) return;
+
+    const newLines = chatReader.read(img) || [];
+    if (newLines.length === 0) return;
+
+    // Process each new line
+    newLines.forEach(line => {
+      if (!line || !line.text) return;
+      const text = line.text.trim();
+
+      // Check for herb pick message
+      const match = text.match(HERB_PICK_REGEX);
+      if (match) {
+        const herbName = match[1].trim().toLowerCase();
+        console.log('ChatReader: Detected herb pick:', herbName);
+
+        // Auto-check the next unchecked patch in route order
+        const checkedPatch = checkNextPatch();
+        if (checkedPatch) {
+          console.log('ChatReader: Auto-checked patch:', checkedPatch.name);
+        }
+      }
+    });
+  } catch (e) {
+    // Silently handle read errors — chat capture can be flaky
+  }
+}
+
+function stopChatReader() {
+  chatReaderActive = false;
+  if (chatReaderInterval) {
+    clearInterval(chatReaderInterval);
+    chatReaderInterval = null;
+  }
+  updateAutoDetectStatus('off');
+}
+
+function toggleChatReader() {
+  if (chatReaderActive) {
+    stopChatReader();
+  } else {
+    initChatReader();
+  }
+}
+
+function updateAutoDetectStatus(status) {
+  const badge = document.getElementById('autoDetectBadge');
+  if (!badge) return;
+
+  const labels = {
+    'active': '&#x1F7E2; Auto-Detect ON',
+    'off': '&#x26AA; Auto-Detect OFF',
+    'needs-permission': '&#x1F534; Needs pixel permission',
+    'no-capture': '&#x1F534; Can\'t capture screen',
+    'no-chatbox': '&#x1F7E1; Chatbox not found',
+    'error': '&#x1F534; Error'
+  };
+
+  badge.innerHTML = labels[status] || labels['off'];
+  badge.className = 'auto-detect-badge ' + status;
+  badge.style.display = isAlt1 ? 'block' : 'none';
+}
+
+// =============================================
 // INIT
 // =============================================
 loadState();
 loadHistory();
 renderPatches();
 updateStats();
+restoreNtfyTopic();
 
-// Alt1: auto-fetch GE prices on load for convenience
+// Auto-fetch GE prices on load so profit numbers are always current
+setTimeout(fetchGEPrices, 500);
+
+// Alt1: attempt to start ChatBoxReader for auto-detection
 if (isAlt1) {
-  setTimeout(fetchGEPrices, 500);
+  setTimeout(initChatReader, 1500);
 }
 </script>
 </body>
