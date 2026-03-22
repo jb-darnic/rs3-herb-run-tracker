@@ -6,7 +6,9 @@
 <meta name="alt1:configurl" content="appconfig.json">
 <title>RS3 Herb Run Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://runeapps.org/alt1lib.js" defer></script>
+<script src="https://unpkg.com/alt1/dist/base/index.js" defer></script>
+<script src="https://unpkg.com/alt1/dist/ocr/index.js" defer></script>
+<script src="https://unpkg.com/alt1/dist/chatbox/index.js" defer></script>
 <style>
   :root {
     --gold: #d4a017;
@@ -5111,8 +5113,15 @@ Object.keys(HERBS).forEach(key => {
 CHAT_HERB_NAMES['bloodweed'] = 'bloodweed';
 
 function initChatReader() {
-  if (!isAlt1 || !window.A1lib) {
-    console.log('ChatReader: Not in Alt1 or a1lib not loaded');
+  if (!isAlt1) {
+    console.log('ChatReader: Not in Alt1');
+    return false;
+  }
+
+  // Check that the Chatbox library loaded from unpkg
+  if (typeof Chatbox === 'undefined') {
+    console.log('ChatReader: Chatbox library not loaded');
+    updateAutoDetectStatus('error');
     return false;
   }
 
@@ -5123,31 +5132,20 @@ function initChatReader() {
       return false;
     }
 
-    chatReader = new A1lib.ChatBoxReader();
-    chatReader.readargs = {
-      colors: [
-        A1lib.mixColor(0, 255, 0),       // green (default game chat)
-        A1lib.mixColor(127, 169, 255),    // blue (filtered game messages)
-        A1lib.mixColor(255, 255, 255),    // white
-        A1lib.mixColor(239, 0, 0),        // red
-        A1lib.mixColor(255, 176, 0),      // orange (game messages)
-        A1lib.mixColor(0, 255, 255),      // cyan
-      ]
-    };
+    // Use Chatbox.default() — the standard constructor from @alt1/chatbox
+    chatReader = Chatbox.default();
 
-    // Find chatbox in screenshot
-    const img = A1lib.captureHoldFullRs();
-    if (!img) {
-      console.log('ChatReader: Could not capture game screen');
-      updateAutoDetectStatus('no-capture');
-      return false;
-    }
-
-    const found = chatReader.find(img);
+    // Find chatbox on screen (this produces the white detection outline)
+    const found = chatReader.find();
     if (!found) {
       console.log('ChatReader: Could not find chatbox. Make sure the chatbox is visible.');
       updateAutoDetectStatus('no-chatbox');
       return false;
+    }
+
+    // Select the main chatbox if multiple are detected
+    if (chatReader.pos && chatReader.pos.boxes && chatReader.pos.boxes.length > 0) {
+      chatReader.pos.mainbox = chatReader.pos.boxes[0];
     }
 
     console.log('ChatReader: Chatbox found! Starting auto-detection.');
@@ -5169,10 +5167,7 @@ function readChatMessages() {
   if (!chatReader || !chatReaderActive) return;
 
   try {
-    const img = A1lib.captureHoldFullRs();
-    if (!img) return;
-
-    const newLines = chatReader.read(img) || [];
+    const newLines = chatReader.read() || [];
     if (newLines.length === 0) return;
 
     // Process each new line
