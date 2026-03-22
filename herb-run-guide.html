@@ -5160,10 +5160,10 @@ function initChatReader() {
       return false;
     }
 
-    console.log('ChatReader: Creating reader with Chatbox.default()...');
+    console.log('ChatReader: Creating reader with new Chatbox.default()...');
 
-    // Use Chatbox.default() — the standard constructor from @alt1/chatbox
-    chatReader = Chatbox.default();
+    // Chatbox.default is the ChatBoxReader class — must use 'new'
+    chatReader = new (Chatbox.default)();
     console.log('ChatReader: Reader created:', chatReader);
 
     // Find chatbox on screen (this produces the white detection outline)
