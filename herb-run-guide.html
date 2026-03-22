@@ -6,9 +6,6 @@
 <meta name="alt1:configurl" content="appconfig.json">
 <title>RS3 Herb Run Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/alt1/dist/base/index.js" defer></script>
-<script src="https://unpkg.com/alt1/dist/ocr/index.js" defer></script>
-<script src="https://unpkg.com/alt1/dist/chatbox/index.js" defer></script>
 <style>
   :root {
     --gold: #d4a017;
@@ -3039,6 +3036,11 @@
 <!-- Save indicator toast -->
 <div class="save-indicator" id="saveIndicator">&#10003; Saved</div>
 
+<!-- Alt1 Chatbox libraries (must load before inline script) -->
+<script src="https://unpkg.com/alt1/dist/base/index.js"></script>
+<script src="https://unpkg.com/alt1/dist/ocr/index.js"></script>
+<script src="https://unpkg.com/alt1/dist/chatbox/index.js"></script>
+
 <script>
 // =============================================
 // ALT1 TOOLKIT DETECTION
@@ -3046,6 +3048,9 @@
 const isAlt1 = (typeof alt1 !== 'undefined') || window.alt1 !== undefined;
 if (isAlt1) {
   document.body.classList.add('alt1');
+  // Show the auto-detect badge immediately so we can see status
+  const _badge = document.getElementById('autoDetectBadge');
+  if (_badge) _badge.style.display = 'block';
 }
 
 // =============================================
@@ -3793,7 +3798,9 @@ function toggleCheck(id) {
   // Auto-trigger regrow countdown when all active patches are done (checked or died)
   const active = getActivePatches();
   const doneCount = active.filter(p => checked[p.id] || died[p.id]).length;
-  if (active.length > 0 && doneCount === active.length && !regrowTargetTime) {
+  // Start regrow countdown when all patches done — allow restart if old timer already expired
+  if (active.length > 0 && doneCount === active.length &&
+      (!regrowTargetTime || regrowTargetTime <= Date.now())) {
     startRegrowCountdown();
   }
 
@@ -3823,7 +3830,9 @@ function toggleDied(id) {
   // Auto-trigger regrow countdown when all active patches are done
   const active = getActivePatches();
   const doneCount = active.filter(p => checked[p.id] || died[p.id]).length;
-  if (active.length > 0 && doneCount === active.length && !regrowTargetTime) {
+  // Start regrow countdown when all patches done — allow restart if old timer already expired
+  if (active.length > 0 && doneCount === active.length &&
+      (!regrowTargetTime || regrowTargetTime <= Date.now())) {
     startRegrowCountdown();
   }
 
@@ -5100,17 +5109,20 @@ let chatReaderInterval = null;
 let chatReader = null;
 let lastChatLines = [];
 
-// Herb pick message patterns from RS3 chat
-// "You pick a grimy kwuarm." / "You pick a clean kwuarm."
-const HERB_PICK_REGEX = /You pick (?:a |an )(?:grimy |clean )?([\w\s]+)\./i;
+// Herb patch message patterns from RS3 chat
+// "You plant a kwuarm seed in the herb patch." — triggers when player finishes planting at a patch
+const HERB_PLANT_REGEX = /You plant (?:a |an |some )?(.+?) seeds? in the herb patch/i;
 
-// Map herb names (as they appear in chat) to our herb keys
+// Map seed names (as they appear in chat) to our herb keys
 const CHAT_HERB_NAMES = {};
 Object.keys(HERBS).forEach(key => {
+  // Chat says "kwuarm seed", "spirit weed seed", etc.
   CHAT_HERB_NAMES[HERBS[key].name.toLowerCase()] = key;
 });
-// Add bloodweed
 CHAT_HERB_NAMES['bloodweed'] = 'bloodweed';
+
+let chatReaderRetries = 0;
+const CHAT_READER_MAX_RETRIES = 5;
 
 function initChatReader() {
   if (!isAlt1) {
@@ -5118,38 +5130,70 @@ function initChatReader() {
     return false;
   }
 
+  // Debug: log what's available
+  console.log('ChatReader init — alt1:', typeof alt1, '| Chatbox:', typeof Chatbox, '| A1lib:', typeof A1lib);
+
   // Check that the Chatbox library loaded from unpkg
   if (typeof Chatbox === 'undefined') {
-    console.log('ChatReader: Chatbox library not loaded');
-    updateAutoDetectStatus('error');
+    console.log('ChatReader: Chatbox library not loaded yet');
+    // Retry — scripts may still be loading
+    if (chatReaderRetries < CHAT_READER_MAX_RETRIES) {
+      chatReaderRetries++;
+      console.log('ChatReader: Retry ' + chatReaderRetries + '/' + CHAT_READER_MAX_RETRIES + ' in 2s...');
+      setTimeout(initChatReader, 2000);
+    } else {
+      updateAutoDetectStatus('error');
+    }
     return false;
   }
 
   try {
-    if (!window.alt1 || typeof alt1.permissionPixel === 'undefined' || !alt1.permissionPixel) {
-      console.log('ChatReader: Pixel permission not granted. Need to reinstall with updated permissions.');
+    if (!window.alt1) {
+      console.log('ChatReader: window.alt1 not available');
+      updateAutoDetectStatus('error');
+      return false;
+    }
+
+    if (typeof alt1.permissionPixel !== 'undefined' && !alt1.permissionPixel) {
+      console.log('ChatReader: Pixel permission not granted. Reinstall plugin with updated appconfig.json.');
       updateAutoDetectStatus('needs-permission');
       return false;
     }
 
+    console.log('ChatReader: Creating reader with Chatbox.default()...');
+
     // Use Chatbox.default() — the standard constructor from @alt1/chatbox
     chatReader = Chatbox.default();
+    console.log('ChatReader: Reader created:', chatReader);
 
     // Find chatbox on screen (this produces the white detection outline)
+    console.log('ChatReader: Calling find()...');
     const found = chatReader.find();
+    console.log('ChatReader: find() returned:', found);
+
     if (!found) {
-      console.log('ChatReader: Could not find chatbox. Make sure the chatbox is visible.');
-      updateAutoDetectStatus('no-chatbox');
+      console.log('ChatReader: Could not find chatbox. Make sure your chatbox is visible and not minimized.');
+      // Retry a few times — player may not have chatbox open yet
+      if (chatReaderRetries < CHAT_READER_MAX_RETRIES) {
+        chatReaderRetries++;
+        console.log('ChatReader: Retry find ' + chatReaderRetries + '/' + CHAT_READER_MAX_RETRIES + ' in 3s...');
+        updateAutoDetectStatus('no-chatbox');
+        setTimeout(initChatReader, 3000);
+      } else {
+        updateAutoDetectStatus('no-chatbox');
+      }
       return false;
     }
 
     // Select the main chatbox if multiple are detected
     if (chatReader.pos && chatReader.pos.boxes && chatReader.pos.boxes.length > 0) {
       chatReader.pos.mainbox = chatReader.pos.boxes[0];
+      console.log('ChatReader: Using mainbox index 0 of ' + chatReader.pos.boxes.length + ' boxes');
     }
 
-    console.log('ChatReader: Chatbox found! Starting auto-detection.');
+    console.log('ChatReader: Chatbox found! Starting auto-detection polling.');
     chatReaderActive = true;
+    chatReaderRetries = 0;
     updateAutoDetectStatus('active');
 
     // Poll chat every 600ms
@@ -5158,7 +5202,14 @@ function initChatReader() {
 
   } catch (e) {
     console.error('ChatReader init error:', e);
-    updateAutoDetectStatus('error');
+    // Retry on error too — might be a timing issue
+    if (chatReaderRetries < CHAT_READER_MAX_RETRIES) {
+      chatReaderRetries++;
+      console.log('ChatReader: Retry after error ' + chatReaderRetries + '/' + CHAT_READER_MAX_RETRIES + ' in 2s...');
+      setTimeout(initChatReader, 2000);
+    } else {
+      updateAutoDetectStatus('error');
+    }
     return false;
   }
 }
@@ -5175,11 +5226,11 @@ function readChatMessages() {
       if (!line || !line.text) return;
       const text = line.text.trim();
 
-      // Check for herb pick message
-      const match = text.match(HERB_PICK_REGEX);
+      // Check for herb plant message: "You plant a kwuarm seed in the herb patch."
+      const match = text.match(HERB_PLANT_REGEX);
       if (match) {
-        const herbName = match[1].trim().toLowerCase();
-        console.log('ChatReader: Detected herb pick:', herbName);
+        const seedName = match[1].trim().toLowerCase();
+        console.log('ChatReader: Detected herb plant:', seedName);
 
         // Auto-check the next unchecked patch in route order
         const checkedPatch = checkNextPatch();
