@@ -33,6 +33,12 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  /* === Custom Scrollbars === */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+  ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
   /* === ACCESSIBILITY: Focus States === */
   *:focus-visible {
     outline: 2px solid var(--gold);
@@ -2372,9 +2378,10 @@
   /* --- Base & Background --- */
   body.alt1 {
     background: var(--bg-deep);
-    overflow-x: hidden;
+    overflow: hidden;
     font-size: 14px;
     line-height: 1.45;
+    height: 100vh;
   }
   body.alt1::before,
   body.alt1::after { display: none; }  /* GPU-heavy decorative layers */
@@ -2382,6 +2389,11 @@
   body.alt1 .app {
     max-width: 100%;
     padding: 8px 10px 52px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   /* --- Header --- */
@@ -2547,8 +2559,21 @@
   body.alt1 .save-indicator { bottom: 50px; }
 
   /* Alt1 + compact stacks for ultra-minimal overlay */
-  body.alt1.compact .app { padding: 6px 6px 44px; }
-  body.alt1.compact .header { padding: 6px 0 4px; margin-bottom: 6px; }
+  body.alt1.compact .app { padding: 4px 5px 44px; }
+  body.alt1.compact .header { padding: 4px 0 3px; margin-bottom: 4px; }
+  body.alt1.compact .header h1 { font-size: 13px; letter-spacing: 1px; gap: 4px; }
+  body.alt1.compact .header .farming-icon { width: 16px; height: 16px; }
+  body.alt1.compact .regrow-banner { padding: 6px 8px; margin-bottom: 4px; }
+  body.alt1.compact .regrow-time { font-size: 16px; }
+  body.alt1.compact .stats-row { gap: 3px; margin-bottom: 4px; }
+  body.alt1.compact .stat-card { padding: 4px 5px; }
+  body.alt1.compact .stat-card .stat-label { font-size: 7px; }
+  body.alt1.compact .stat-card .stat-value { font-size: 12px; }
+  body.alt1.compact .patch-card { margin-bottom: 2px; }
+  body.alt1.compact .patch-main { padding: 4px 6px; }
+  body.alt1.compact .patch-name { font-size: 11px; }
+  body.alt1.compact .patch-time .time-value { font-size: 12px; }
+  body.alt1.compact .progress-bar-wrap { margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -4806,9 +4831,13 @@ document.addEventListener('keydown', (e) => {
 
   const overlayOpen = document.getElementById('shortcutOverlay').classList.contains('show');
 
-  // Escape always closes overlay
+  // Escape closes any open overlay/panel
   if (e.key === 'Escape') {
-    if (overlayOpen) { closeShortcuts(); e.preventDefault(); }
+    if (overlayOpen) { closeShortcuts(); e.preventDefault(); return; }
+    const instrPanel = document.getElementById('instructionsPanel');
+    if (instrPanel && instrPanel.classList.contains('open')) { toggleInstructions(); e.preventDefault(); return; }
+    const settingsPanel = document.getElementById('settingsPanel');
+    if (settingsPanel && settingsPanel.classList.contains('open')) { toggleSettings(); e.preventDefault(); return; }
     return;
   }
 
